@@ -125,7 +125,7 @@ export const HeroPixelBuilder: React.FC<HeroPixelBuilderProps> = ({
 
       // Extract pieces for each DOM element
       const elementJobs = buildElements.map((el) => {
-        const buildType = (el.dataset.build as 'text' | 'box' | 'ring') || 'text';
+        const buildType = (el.dataset.build as 'pixel-art' | 'text' | 'box' | 'ring') || 'text';
         const group = el.dataset.crew || el.dataset.build || 'default';
         const pieces = piecesOf(el, containerRect, buildType);
         return {
@@ -145,7 +145,7 @@ export const HeroPixelBuilder: React.FC<HeroPixelBuilderProps> = ({
       });
 
       const groups = Array.from(groupMap.keys());
-      const styleList: BuildStyle[] = ['websling', 'scan', 'drop', 'flank'];
+      const styleList: BuildStyle[] = ['kinetic', 'scan', 'drop', 'flank'];
 
       // Spawn Spider-Bot Agents
       const agents: SpiderBotAgent[] = groups.map((grpName, idx) => {
@@ -281,7 +281,7 @@ export const HeroPixelBuilder: React.FC<HeroPixelBuilderProps> = ({
               let targetX = activePiece.tx;
               let targetY = activePiece.ty - 24;
 
-              if (agent.buildStyle === 'websling') {
+              if (agent.buildStyle === 'kinetic') {
                 targetX += Math.cos(now / 140) * 8;
                 targetY -= 6;
               } else if (agent.buildStyle === 'scan') {
@@ -352,7 +352,7 @@ export const HeroPixelBuilder: React.FC<HeroPixelBuilderProps> = ({
               piece.f = Math.min(1, piece.f + dt / 0.15);
               const ease = 1 - Math.pow(1 - piece.f, 3);
 
-              if (agent.buildStyle === 'websling') {
+              if (agent.buildStyle === 'kinetic') {
                 // Curved swing trajectory
                 const curveArc = Math.sin(piece.f * Math.PI) * 12;
                 piece.x = piece.ox + (piece.tx - piece.ox) * ease;

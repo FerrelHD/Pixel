@@ -42,11 +42,10 @@ export const PixelSpidey: React.FC<PixelSpideyProps> = ({
         </div>
       )}
 
-      {/* Hanging Web Strand (Top to Spidey) */}
-      <div className="w-0.5 h-16 sm:h-24 bg-white/40 drop-shadow-[0_0_4px_rgba(255,255,255,0.7)]" />
-
-      {/* Stepped Breathing / Idle Motion Container */}
+      {/* Stepped Breathing / Idle Motion Container with In-Situ Pixel-Art Build */}
       <motion.div
+        data-build="pixel-art"
+        data-crew="spidey"
         animate={{
           y: [0, -6, 0, 3, 0],
           rotate: [-1, 1, -1],

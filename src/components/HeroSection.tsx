@@ -46,11 +46,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
       {/* 2. Character & Skyline Stage Area */}
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 pt-4 sm:pt-8 pb-4">
         {/* Pixel Spider-Man Avatar */}
-        <div
-          data-build="box"
-          data-crew="spidey"
-          className="relative w-full max-w-4xl flex items-center justify-center my-auto"
-        >
+        <div className="relative w-full max-w-4xl flex items-center justify-center my-auto">
           <PixelSpidey
             isMuted={isMuted}
             spiderSenseActive={spiderSenseTriggered}

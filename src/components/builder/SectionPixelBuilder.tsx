@@ -93,7 +93,7 @@ export const SectionPixelBuilder: React.FC<SectionPixelBuilderProps> = ({
         buildElements.every((el) => el.hasAttribute('data-solid'));
 
       const elementJobs = buildElements.map((el) => {
-        const buildType = (el.dataset.build as 'text' | 'box' | 'ring') || 'text';
+        const buildType = (el.dataset.build as 'pixel-art' | 'text' | 'box' | 'ring') || 'text';
         const group = el.dataset.crew || el.dataset.build || 'default';
         const pieces = piecesOf(el, containerRect, buildType);
         return {
@@ -112,7 +112,7 @@ export const SectionPixelBuilder: React.FC<SectionPixelBuilderProps> = ({
       });
 
       const groups = Array.from(groupMap.keys());
-      const styleList: BuildStyle[] = ['scan', 'drop', 'websling'];
+      const styleList: BuildStyle[] = ['scan', 'drop', 'kinetic'];
 
       const agents: SpiderBotAgent[] = groups.map((grpName, idx) => {
         const groupJobs = groupMap.get(grpName) || [];

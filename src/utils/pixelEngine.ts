@@ -75,7 +75,7 @@ export function getTextRuns(element: HTMLElement, containerRect: DOMRect): TextR
 
     const text = node.textContent ?? '';
     for (let i = 0; i < text.length; i++) {
-      if (text[i].trim() === '') continue; // Skip standalone spaces in runs
+      if (text[i].trim() === '') continue;
 
       range.setStart(node, i);
       range.setEnd(node, i + 1);
@@ -153,18 +153,84 @@ export function rasterizeText(
 }
 
 /**
- * Extract pixel pieces for any DOM element (text, box, ring)
+ * Extract pixel pieces for any DOM element (pixel-art, text, box, ring)
  */
 export function piecesOf(
   element: HTMLElement,
   containerRect: DOMRect,
-  type: 'text' | 'box' | 'ring' = 'text',
+  type: 'pixel-art' | 'text' | 'box' | 'ring' = 'text',
   defaultColor = '#ffffff'
 ): PixelPiece[] {
   const style = getComputedStyle(element);
   const elemRect = element.getBoundingClientRect();
   const pieces: PixelPiece[] = [];
 
+  // 1. Pixel Art / SVG Extraction (Extract exact pixel rects from SVG)
+  if (type === 'pixel-art' || element.querySelector('svg')) {
+    const svgs = Array.from(element.querySelectorAll('svg'));
+    if (element.tagName.toLowerCase() === 'svg') {
+      svgs.push(element as unknown as SVGSVGElement);
+    }
+
+    for (const svg of svgs) {
+      const rects = Array.from(svg.querySelectorAll('rect'));
+      for (const r of rects) {
+        const fill = r.getAttribute('fill');
+        if (!fill || fill === 'none' || fill === 'transparent') continue;
+
+        const rRect = r.getBoundingClientRect();
+        if (rRect.width === 0 || rRect.height === 0) continue;
+
+        const left = Math.round(rRect.left - containerRect.left);
+        const top = Math.round(rRect.top - containerRect.top);
+
+        pieces.push(
+          makePiece(
+            left,
+            top,
+            Math.max(2, Math.round(rRect.width)),
+            Math.max(2, Math.round(rRect.height)),
+            fill,
+            top
+          )
+        );
+      }
+    }
+
+    // Also include any perch or support block underneath
+    const perch = element.querySelector('.shadow-pixel');
+    if (perch) {
+      const pRect = perch.getBoundingClientRect();
+      const pLeft = Math.round(pRect.left - containerRect.left);
+      const pTop = Math.round(pRect.top - containerRect.top);
+      const pW = Math.round(pRect.width);
+      const pH = Math.round(pRect.height);
+      const step = 8;
+      const cols = Math.max(1, Math.round(pW / step));
+      const rows = Math.max(1, Math.round(pH / step));
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          pieces.push(
+            makePiece(
+              pLeft + c * step,
+              pTop + r * step,
+              step - 1,
+              step - 1,
+              r === 0 || r === rows - 1 || c === 0 || c === cols - 1 ? '#475569' : '#1e293b',
+              pTop
+            )
+          );
+        }
+      }
+    }
+
+    if (pieces.length > 0) {
+      pieces.sort((a, b) => a.lineTop - b.lineTop || a.tx - b.tx);
+      return pieces;
+    }
+  }
+
+  // 2. Text Extraction
   if (type === 'text') {
     const fontSize = parseFloat(style.fontSize) || 14;
     const fontFamily = style.fontFamily || 'monospace';
@@ -257,7 +323,7 @@ export function piecesOf(
   return pieces;
 }
 
-export type BuildStyle = 'websling' | 'scan' | 'drop' | 'flank';
+export type BuildStyle = 'kinetic' | 'scan' | 'drop' | 'flank';
 export type BotMode = 'building' | 'floating' | 'perched';
 
 export interface SpiderBotAgent {
@@ -278,7 +344,6 @@ export interface SpiderBotAgent {
   primaryColor: string;
   eyeColor: string;
 
-  // Varied animation & floating properties
   buildStyle: BuildStyle;
   mode: BotMode;
   idleTargetX: number;
@@ -341,19 +406,7 @@ export function drawSpiderBot(
 
   // 1. Draw Build-Style specific visual effects
   if (bot.mode === 'building') {
-    const activePiece = bot.job.find((p) => p.state === 'flying');
-
-    if (bot.buildStyle === 'websling' && activePiece) {
-      // Glowing web silk thread connecting bot to the descending block
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(bot.x, bot.y);
-      const midX = (bot.x + activePiece.x) / 2 + (bot.face > 0 ? 12 : -12);
-      const midY = (bot.y + activePiece.y) / 2 - 14;
-      ctx.quadraticCurveTo(midX, midY, activePiece.x, activePiece.y);
-      ctx.stroke();
-    } else if (bot.buildStyle === 'scan') {
+    if (bot.buildStyle === 'scan') {
       // Vertical cyan laser scanner beam
       const beamHeight = 45;
       const grad = ctx.createLinearGradient(bot.x, startY + spriteH, bot.x, startY + spriteH + beamHeight);
@@ -363,7 +416,6 @@ export function drawSpiderBot(
       ctx.fillStyle = grad;
       ctx.fillRect(bot.x - 7, startY + spriteH, 14, beamHeight);
 
-      // Thin bright laser line
       ctx.fillStyle = '#38bdf8';
       ctx.fillRect(bot.x - 0.75, startY + spriteH, 1.5, beamHeight * 0.75);
     }
@@ -393,7 +445,6 @@ export function drawSpiderBot(
 
   // 3. Draw Legs (Grounded when perched, or jet thrusters when airborne)
   if (bot.mode === 'perched') {
-    // Folded mechanical resting legs
     ctx.fillStyle = '#1e293b';
     PERCHED_LEGS.forEach((row, r) => {
       for (let c = 0; c < row.length; c++) {
@@ -403,7 +454,6 @@ export function drawSpiderBot(
       }
     });
   } else if (bot.fly) {
-    // Animated dual cyan thruster jets
     const pulse = Math.floor(time / 70) % 2;
     ctx.fillStyle = '#38bdf8';
     ctx.globalAlpha = 0.85;
@@ -413,7 +463,6 @@ export function drawSpiderBot(
     ctx.fillRect(startX + 7 * scale, jetY, scale * 2, flameH);
     ctx.globalAlpha = 1.0;
 
-    // Floating idle micro-ember particle
     if (bot.mode === 'floating' && pulse) {
       ctx.fillStyle = '#38bdf8';
       ctx.globalAlpha = 0.6;
@@ -422,7 +471,7 @@ export function drawSpiderBot(
     }
   }
 
-  // 4. Sonar Radar Pulse Ring (occasional idle effect)
+  // 4. Sonar Radar Pulse Ring
   if (bot.sonarRadius > 0) {
     ctx.strokeStyle = '#38bdf8';
     ctx.globalAlpha = Math.max(0, 1 - bot.sonarRadius / 40);
@@ -433,7 +482,7 @@ export function drawSpiderBot(
     ctx.globalAlpha = 1.0;
   }
 
-  // 5. Mini Pixel Emote Speech Bubble (when clicked or excited)
+  // 5. Mini Pixel Emote Speech Bubble
   if (bot.emote) {
     const bubbleW = 18;
     const bubbleH = 14;
@@ -446,11 +495,9 @@ export function drawSpiderBot(
     ctx.lineWidth = 1;
     ctx.strokeRect(bx, by, bubbleW, bubbleH);
 
-    // Bubble pointer notch
     ctx.fillStyle = '#facc15';
     ctx.fillRect(bot.x - 1, by + bubbleH, 2, 2);
 
-    // Emote text symbol
     ctx.fillStyle = '#ffffff';
     ctx.font = '10px monospace';
     ctx.textAlign = 'center';
