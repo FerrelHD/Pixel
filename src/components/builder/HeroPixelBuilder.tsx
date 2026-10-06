@@ -269,7 +269,7 @@ export const HeroPixelBuilder: React.FC<HeroPixelBuilderProps> = ({
                 piece.ox = agent.x;
                 piece.oy = agent.y;
                 blipCounter++;
-                if (blipCounter % 6 === 0 && !isMuted) {
+                if (blipCounter % 14 === 0 && !isMuted) {
                   soundSynth.playTypewriterBlip(isMuted);
                 }
               }

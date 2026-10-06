@@ -224,7 +224,7 @@ export const SectionPixelBuilder: React.FC<SectionPixelBuilderProps> = ({
                 piece.ox = agent.x;
                 piece.oy = agent.y;
                 blipCounter++;
-                if (blipCounter % 8 === 0 && !isMuted) {
+                if (blipCounter % 16 === 0 && !isMuted) {
                   soundSynth.playTypewriterBlip(isMuted);
                 }
               }

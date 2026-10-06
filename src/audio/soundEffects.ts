@@ -1,5 +1,5 @@
 // Web Audio API Retro 8-bit Synthesizer
-// Zero external audio files required, zero latency, 100% authentic chiptune synthesis
+// Zero external audio files required, zero latency, gentle non-intrusive volume levels
 
 class SoundSynth {
   private ctx: AudioContext | null = null;
@@ -7,7 +7,9 @@ class SoundSynth {
   private getContext(): AudioContext | null {
     if (typeof window === 'undefined') return null;
     if (!this.ctx) {
-      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       if (AudioCtx) {
         this.ctx = new AudioCtx();
       }
@@ -18,7 +20,7 @@ class SoundSynth {
     return this.ctx;
   }
 
-  // Retro typewriter dialogue chatter blip
+  // Soft retro typewriter dialogue chatter blip (gentle volume)
   playTypewriterBlip(isMuted: boolean) {
     if (isMuted) return;
     const ctx = this.getContext();
@@ -28,26 +30,26 @@ class SoundSynth {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
-      // Vintage square wave gives classic 8-bit computer/RPG dialogue feel
-      osc.type = 'square';
-      // Slight pitch variance for organic dialogue vocalization
-      const baseFreq = 540 + Math.floor(Math.random() * 80);
+      // Triangle wave offers a much softer, smoother chiptune tone than harsh square waves
+      osc.type = 'triangle';
+      const baseFreq = 480 + Math.floor(Math.random() * 60);
       osc.frequency.setValueAtTime(baseFreq, ctx.currentTime);
 
-      gain.gain.setValueAtTime(0.04, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.03);
+      // Gentle gain ramp (lowered to ~0.007 for comfortable listening)
+      gain.gain.setValueAtTime(0.007, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.025);
 
       osc.connect(gain);
       gain.connect(ctx.destination);
 
       osc.start();
-      osc.stop(ctx.currentTime + 0.035);
+      osc.stop(ctx.currentTime + 0.028);
     } catch {
       // AudioContext safe fallback
     }
   }
 
-  // Tactile button hover tick
+  // Tactile button hover tick (very soft click)
   playButtonHover(isMuted: boolean) {
     if (isMuted) return;
     const ctx = this.getContext();
@@ -58,20 +60,20 @@ class SoundSynth {
       const gain = ctx.createGain();
 
       osc.type = 'triangle';
-      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      osc.frequency.setValueAtTime(740, ctx.currentTime);
 
-      gain.gain.setValueAtTime(0.03, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.02);
+      gain.gain.setValueAtTime(0.005, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.018);
 
       osc.connect(gain);
       gain.connect(ctx.destination);
 
       osc.start();
-      osc.stop(ctx.currentTime + 0.025);
+      osc.stop(ctx.currentTime + 0.02);
     } catch {}
   }
 
-  // Arcade menu confirmation beep (2-tone arpeggio)
+  // Arcade menu confirmation beep (gentle 2-tone chime)
   playButtonPress(isMuted: boolean) {
     if (isMuted) return;
     const ctx = this.getContext();
@@ -82,23 +84,22 @@ class SoundSynth {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
-      osc.type = 'square';
-      // 523Hz (C5) -> 784Hz (G5)
+      osc.type = 'triangle';
       osc.frequency.setValueAtTime(523.25, now);
-      osc.frequency.setValueAtTime(783.99, now + 0.04);
+      osc.frequency.setValueAtTime(783.99, now + 0.035);
 
-      gain.gain.setValueAtTime(0.06, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+      gain.gain.setValueAtTime(0.012, now);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.1);
 
       osc.connect(gain);
       gain.connect(ctx.destination);
 
       osc.start(now);
-      osc.stop(now + 0.13);
+      osc.stop(now + 0.11);
     } catch {}
   }
 
-  // Modal close sound (descending chirp)
+  // Modal close sound (gentle descending chirp)
   playCloseSound(isMuted: boolean) {
     if (isMuted) return;
     const ctx = this.getContext();
@@ -109,22 +110,22 @@ class SoundSynth {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
-      osc.type = 'square';
+      osc.type = 'triangle';
       osc.frequency.setValueAtTime(659.25, now);
       osc.frequency.setValueAtTime(440, now + 0.03);
 
-      gain.gain.setValueAtTime(0.05, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+      gain.gain.setValueAtTime(0.01, now);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.07);
 
       osc.connect(gain);
       gain.connect(ctx.destination);
 
       osc.start(now);
-      osc.stop(now + 0.09);
+      osc.stop(now + 0.08);
     } catch {}
   }
 
-  // Spider-Sense tingling alert
+  // Spider-Sense tingling alert (soft retro warble)
   playSpiderSense(isMuted: boolean) {
     if (isMuted) return;
     const ctx = this.getContext();
@@ -135,19 +136,19 @@ class SoundSynth {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(1100, now);
-      osc.frequency.linearRampToValueAtTime(1600, now + 0.08);
-      osc.frequency.linearRampToValueAtTime(1200, now + 0.16);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(980, now);
+      osc.frequency.linearRampToValueAtTime(1300, now + 0.07);
+      osc.frequency.linearRampToValueAtTime(1050, now + 0.14);
 
-      gain.gain.setValueAtTime(0.05, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+      gain.gain.setValueAtTime(0.012, now);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
 
       osc.connect(gain);
       gain.connect(ctx.destination);
 
       osc.start(now);
-      osc.stop(now + 0.22);
+      osc.stop(now + 0.2);
     } catch {}
   }
 }
