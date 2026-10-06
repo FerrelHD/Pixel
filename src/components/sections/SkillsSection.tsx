@@ -1,6 +1,7 @@
 import React from 'react';
 import { Zap, Code, Gamepad2, Server, Palette } from 'lucide-react';
 import { soundSynth } from '../../audio/soundEffects';
+import { ScrollPixelReveal } from '../builder/ScrollPixelReveal';
 
 interface SkillsSectionProps {
   isMuted?: boolean;
@@ -88,37 +89,42 @@ export const SkillsSection: React.FC<SkillsSectionProps> = ({ isMuted = false })
 
         {/* 4 Quadrants Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {SKILL_CLUSTERS.map((cluster) => (
-            <div
+          {SKILL_CLUSTERS.map((cluster, idx) => (
+            <ScrollPixelReveal
               key={cluster.title}
-              onMouseEnter={() => soundSynth.playButtonHover(isMuted)}
-              className={`p-5 bg-midnight-900 border-4 ${cluster.accent} shadow-pixel`}
+              delay={idx * 120}
+              showBotHelper={idx === 1}
             >
-              <div className="flex items-center gap-2 mb-4 pb-2 border-b border-midnight-800">
-                {cluster.icon}
-                <h3 className="font-pixel text-[11px] sm:text-xs text-white font-bold">
-                  {cluster.title}
-                </h3>
-              </div>
+              <div
+                onMouseEnter={() => soundSynth.playButtonHover(isMuted)}
+                className={`p-5 bg-midnight-900 border-4 ${cluster.accent} shadow-pixel h-full`}
+              >
+                <div className="flex items-center gap-2 mb-4 pb-2 border-b border-midnight-800">
+                  {cluster.icon}
+                  <h3 className="font-pixel text-[11px] sm:text-xs text-white font-bold">
+                    {cluster.title}
+                  </h3>
+                </div>
 
-              <div className="space-y-3.5">
-                {cluster.skills.map((skill) => (
-                  <div key={skill.name}>
-                    <div className="flex justify-between items-center text-[9px] font-pixel mb-1.5">
-                      <span className="text-slate-200">{skill.name}</span>
-                      <span className="text-arcade-gold">{skill.level}%</span>
+                <div className="space-y-3.5">
+                  {cluster.skills.map((skill) => (
+                    <div key={skill.name}>
+                      <div className="flex justify-between items-center text-[9px] font-pixel mb-1.5">
+                        <span className="text-slate-200">{skill.name}</span>
+                        <span className="text-arcade-gold">{skill.level}%</span>
+                      </div>
+                      {/* Stepped retro meter */}
+                      <div className="w-full h-3 bg-midnight-950 border border-midnight-700 p-0.5">
+                        <div
+                          className={`h-full ${cluster.barColor} transition-all duration-500`}
+                          style={{ width: `${skill.level}%` }}
+                        />
+                      </div>
                     </div>
-                    {/* Stepped retro meter */}
-                    <div className="w-full h-3 bg-midnight-950 border border-midnight-700 p-0.5">
-                      <div
-                        className={`h-full ${cluster.barColor} transition-all duration-500`}
-                        style={{ width: `${skill.level}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
+            </ScrollPixelReveal>
           ))}
         </div>
       </div>

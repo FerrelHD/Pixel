@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Radio, Mail, Github, Linkedin, MessageSquare, Check, ArrowUp } from 'lucide-react';
 import { soundSynth } from '../../audio/soundEffects';
+import { ScrollPixelReveal } from '../builder/ScrollPixelReveal';
 
 interface SignalSectionProps {
   isMuted?: boolean;
@@ -54,8 +55,9 @@ export const SignalSection: React.FC<SignalSectionProps> = ({ isMuted = false })
           </div>
         </div>
 
-        {/* Contact Console Box */}
-        <div className="bg-midnight-900 border-4 border-spidey-crimson p-6 sm:p-8 shadow-pixel relative">
+        {/* Contact Console Box with Scroll Pixel Reveal */}
+        <ScrollPixelReveal showBotHelper={true}>
+          <div className="bg-midnight-900 border-4 border-spidey-crimson p-6 sm:p-8 shadow-pixel relative">
           <div className="absolute -top-1.5 -left-1.5 w-3 h-3 bg-white" />
           <div className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-white" />
           <div className="absolute -bottom-1.5 -left-1.5 w-3 h-3 bg-white" />
@@ -157,6 +159,7 @@ export const SignalSection: React.FC<SignalSectionProps> = ({ isMuted = false })
             )}
           </form>
         </div>
+      </ScrollPixelReveal>
 
         {/* Retro Footer */}
         <footer className="mt-12 pt-6 border-t border-midnight-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">

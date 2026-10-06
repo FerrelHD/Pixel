@@ -1,6 +1,7 @@
 import React from 'react';
 import { Shield, Award, Backpack, Zap } from 'lucide-react';
 import { soundSynth } from '../../audio/soundEffects';
+import { ScrollPixelReveal } from '../builder/ScrollPixelReveal';
 
 interface StatusSectionProps {
   isMuted?: boolean;
@@ -27,8 +28,9 @@ export const StatusSection: React.FC<StatusSectionProps> = ({ isMuted = false })
           </div>
         </div>
 
-        {/* 16-Bit Character Profile Box */}
-        <div className="bg-midnight-900 border-4 border-slate-300 p-5 sm:p-8 shadow-pixel relative">
+        {/* 16-Bit Character Profile Box with Scroll Pixel Reveal */}
+        <ScrollPixelReveal showBotHelper={true}>
+          <div className="bg-midnight-900 border-4 border-slate-300 p-5 sm:p-8 shadow-pixel relative">
           <div className="absolute -top-1.5 -left-1.5 w-3 h-3 bg-arcade-gold" />
           <div className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-arcade-gold" />
           <div className="absolute -bottom-1.5 -left-1.5 w-3 h-3 bg-arcade-gold" />
@@ -177,6 +179,7 @@ export const StatusSection: React.FC<StatusSectionProps> = ({ isMuted = false })
             </div>
           </div>
         </div>
+      </ScrollPixelReveal>
       </div>
     </section>
   );

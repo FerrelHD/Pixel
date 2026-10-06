@@ -1,6 +1,7 @@
 import React from 'react';
 import { Shield, GitBranch, ExternalLink } from 'lucide-react';
 import { soundSynth } from '../../audio/soundEffects';
+import { ScrollPixelReveal } from '../builder/ScrollPixelReveal';
 
 interface MissionsSectionProps {
   isMuted?: boolean;
@@ -75,91 +76,96 @@ export const MissionsSection: React.FC<MissionsSectionProps> = ({ isMuted = fals
 
         {/* Project Quests Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {PROJECTS.map((project) => (
-            <article
+          {PROJECTS.map((project, idx) => (
+            <ScrollPixelReveal
               key={project.id}
-              onMouseEnter={() => soundSynth.playButtonHover(isMuted)}
-              className="bg-midnight-900 border-4 border-midnight-700 hover:border-cyan-400 p-5 shadow-pixel transition-all duration-150 flex flex-col justify-between group"
+              delay={idx * 140}
+              showBotHelper={idx === 0}
             >
-              <div>
-                {/* Card Screen Frame */}
-                <div className="w-full h-32 bg-midnight-950 border-2 border-midnight-800 p-2 mb-4 relative overflow-hidden flex flex-col items-center justify-center">
-                  {/* Subtle pixel grid texture */}
-                  <div className="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:8px_8px] opacity-40" />
+              <article
+                onMouseEnter={() => soundSynth.playButtonHover(isMuted)}
+                className="bg-midnight-900 border-4 border-midnight-700 hover:border-cyan-400 p-5 shadow-pixel transition-all duration-150 flex flex-col justify-between group h-full"
+              >
+                <div>
+                  {/* Card Screen Frame */}
+                  <div className="w-full h-32 bg-midnight-950 border-2 border-midnight-800 p-2 mb-4 relative overflow-hidden flex flex-col items-center justify-center">
+                    {/* Subtle pixel grid texture */}
+                    <div className="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:8px_8px] opacity-40" />
 
-                  {/* Icon representation */}
-                  <div className="relative z-10 flex flex-col items-center">
-                    <span className="font-pixel text-[10px] text-white tracking-widest text-center px-2 py-1 bg-midnight-900/90 border border-midnight-600 mb-1">
-                      {project.badge}
-                    </span>
-                    <span className="font-sub text-sm text-arcade-gold">
-                      SECTOR ACTIVE
-                    </span>
+                    {/* Icon representation */}
+                    <div className="relative z-10 flex flex-col items-center">
+                      <span className="font-pixel text-[10px] text-white tracking-widest text-center px-2 py-1 bg-midnight-900/90 border border-midnight-600 mb-1">
+                        {project.badge}
+                      </span>
+                      <span className="font-sub text-sm text-arcade-gold">
+                        SECTOR ACTIVE
+                      </span>
+                    </div>
+
+                    {/* Status Pip */}
+                    <div className="absolute top-2 right-2">
+                      <span
+                        className={`font-pixel text-[7px] px-1.5 py-0.5 border ${
+                          project.status === 'COMPLETED'
+                            ? 'bg-emerald-950 border-emerald-500 text-emerald-400'
+                            : 'bg-amber-950 border-amber-500 text-amber-400'
+                        }`}
+                      >
+                        [{project.status}]
+                      </span>
+                    </div>
                   </div>
 
-                  {/* Status Pip */}
-                  <div className="absolute top-2 right-2">
-                    <span
-                      className={`font-pixel text-[7px] px-1.5 py-0.5 border ${
-                        project.status === 'COMPLETED'
-                          ? 'bg-emerald-950 border-emerald-500 text-emerald-400'
-                          : 'bg-amber-950 border-amber-500 text-amber-400'
-                      }`}
-                    >
-                      [{project.status}]
-                    </span>
+                  {/* Project Title */}
+                  <h3 className="font-pixel text-xs text-white group-hover:text-cyan-300 transition-colors leading-relaxed">
+                    {project.title}
+                  </h3>
+
+                  {/* Description */}
+                  <p className="font-sub text-base text-slate-300 mt-2 leading-relaxed">
+                    {project.description}
+                  </p>
+                </div>
+
+                {/* Card Footer: Tech tags and links */}
+                <div className="mt-5 pt-3 border-t border-midnight-800">
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    {project.tech.map((t) => (
+                      <span
+                        key={t}
+                        className="font-pixel text-[7px] px-1.5 py-0.5 bg-midnight-950 border border-midnight-700 text-pixel-muted"
+                      >
+                        #{t}
+                      </span>
+                    ))}
                   </div>
-                </div>
 
-                {/* Project Title */}
-                <h3 className="font-pixel text-xs text-white group-hover:text-cyan-300 transition-colors leading-relaxed">
-                  {project.title}
-                </h3>
-
-                {/* Description */}
-                <p className="font-sub text-base text-slate-300 mt-2 leading-relaxed">
-                  {project.description}
-                </p>
-              </div>
-
-              {/* Card Footer: Tech tags and links */}
-              <div className="mt-5 pt-3 border-t border-midnight-800">
-                <div className="flex flex-wrap gap-1.5 mb-3">
-                  {project.tech.map((t) => (
-                    <span
-                      key={t}
-                      className="font-pixel text-[7px] px-1.5 py-0.5 bg-midnight-950 border border-midnight-700 text-pixel-muted"
-                    >
-                      #{t}
-                    </span>
-                  ))}
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <a
-                    href={project.repoUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => soundSynth.playButtonPress(isMuted)}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-midnight-950 hover:bg-midnight-800 border-2 border-slate-600 text-slate-200 font-pixel text-[8px] active:translate-y-0.5 transition-transform"
-                  >
-                    <GitBranch size={11} />
-                    <span>REPO</span>
-                  </a>
-
-                  {project.demoUrl && (
+                  <div className="flex items-center gap-2">
                     <a
-                      href={project.demoUrl}
+                      href={project.repoUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       onClick={() => soundSynth.playButtonPress(isMuted)}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-spidey-crimson hover:bg-red-700 border-2 border-white text-white font-pixel text-[8px] active:translate-y-0.5 transition-transform"
+                      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-midnight-950 hover:bg-midnight-800 border-2 border-slate-600 text-slate-200 font-pixel text-[8px] active:translate-y-0.5 transition-transform"
                     >
-                      <ExternalLink size={11} />
-                      <span>DEMO</span>
+                      <GitBranch size={11} />
+                      <span>REPO</span>
                     </a>
-                  )}
+
+                    {project.demoUrl && (
+                      <a
+                        href={project.demoUrl}
+                        onClick={() => soundSynth.playButtonPress(isMuted)}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-spidey-crimson hover:bg-red-700 border-2 border-white text-white font-pixel text-[8px] active:translate-y-0.5 transition-transform"
+                      >
+                        <ExternalLink size={11} />
+                        <span>DEMO</span>
+                      </a>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </article>
+              </article>
+            </ScrollPixelReveal>
           ))}
         </div>
       </div>
