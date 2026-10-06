@@ -30,7 +30,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 
   return (
     <section
-      className="relative min-h-[calc(100vh-61px)] flex flex-col justify-between overflow-hidden select-none"
+      id="hero"
+      className="relative min-h-[calc(100vh-61px)] flex flex-col justify-between overflow-hidden select-none scroll-mt-14"
       aria-label="Spidey Pixel Hero Section"
     >
       {/* 1. Layered Retro NYC Night Skyline */}

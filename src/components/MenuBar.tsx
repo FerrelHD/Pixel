@@ -55,7 +55,15 @@ export const MenuBar: React.FC<MenuBarProps> = ({
 
   const handleClick = (id: ModalType) => {
     soundSynth.playButtonPress(isMuted);
-    onOpenModal(id);
+    if (id) {
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+    if (onOpenModal) {
+      onOpenModal(id);
+    }
   };
 
   const handleMouseEnter = () => {
