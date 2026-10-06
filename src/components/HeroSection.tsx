@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { SkylineBackground } from './SkylineBackground';
 import { PixelSpidey } from './PixelSpidey';
 import { RpgDialogueBox } from './RpgDialogueBox';
@@ -8,6 +8,7 @@ import { MissionsModal } from './modals/MissionsModal';
 import { SkillsModal } from './modals/SkillsModal';
 import { SignalModal } from './modals/SignalModal';
 import { ModalType } from '../types';
+import { HeroPixelBuilder } from './builder/HeroPixelBuilder';
 
 interface HeroSectionProps {
   isMuted: boolean;
@@ -18,6 +19,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   isMuted,
   spiderSenseTriggered = false,
 }) => {
+  const heroRef = useRef<HTMLElement>(null);
   const [activeModal, setActiveModal] = useState<ModalType>(null);
 
   const handleOpenModal = (type: ModalType) => {
@@ -30,6 +32,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 
   return (
     <section
+      ref={heroRef}
       id="hero"
       className="relative min-h-[calc(100vh-61px)] flex flex-col justify-between overflow-hidden select-none scroll-mt-14"
       aria-label="Spidey Pixel Hero Section"
@@ -37,10 +40,17 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
       {/* 1. Layered Retro NYC Night Skyline */}
       <SkylineBackground />
 
+      {/* In-Situ Authentic Pixel Builder Overlay (Samuel Rizzon mechanics) */}
+      <HeroPixelBuilder containerRef={heroRef} isMuted={isMuted} />
+
       {/* 2. Character & Skyline Stage Area */}
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 pt-4 sm:pt-8 pb-4">
         {/* Pixel Spider-Man Avatar */}
-        <div className="relative w-full max-w-4xl flex items-center justify-center my-auto">
+        <div
+          data-build="box"
+          data-crew="spidey"
+          className="relative w-full max-w-4xl flex items-center justify-center my-auto"
+        >
           <PixelSpidey
             isMuted={isMuted}
             spiderSenseActive={spiderSenseTriggered}

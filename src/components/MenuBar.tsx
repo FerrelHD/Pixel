@@ -83,6 +83,8 @@ export const MenuBar: React.FC<MenuBarProps> = ({
             <button
               key={item.id}
               type="button"
+              data-build="box"
+              data-crew="buttons"
               onClick={() => handleClick(item.id)}
               onMouseEnter={handleMouseEnter}
               className={`relative flex flex-col items-center justify-center p-3 sm:py-4 px-2 bg-midnight-900 border-3 ${item.colorClass} ${

@@ -1,22 +1,32 @@
-import React from 'react';
-import { Shield, Award, Backpack, Zap } from 'lucide-react';
+import React, { useRef } from 'react';
+import { Award, Shield, Backpack, Zap } from 'lucide-react';
 import { soundSynth } from '../../audio/soundEffects';
-import { ScrollPixelReveal } from '../builder/ScrollPixelReveal';
+import { SectionPixelBuilder } from '../builder/SectionPixelBuilder';
 
 interface StatusSectionProps {
   isMuted?: boolean;
 }
 
 export const StatusSection: React.FC<StatusSectionProps> = ({ isMuted = false }) => {
+  const sectionRef = useRef<HTMLElement>(null);
+
   return (
     <section
+      ref={sectionRef}
       id="status"
       className="relative w-full py-16 sm:py-24 px-4 sm:px-6 bg-midnight-950 border-t-4 border-midnight-700 select-none scroll-mt-14"
       aria-label="Character Status"
     >
+      {/* Scroll Pixel Builder Overlay */}
+      <SectionPixelBuilder containerRef={sectionRef} isMuted={isMuted} />
+
       <div className="max-w-5xl mx-auto">
         {/* Section Header */}
-        <div className="flex items-center gap-3 mb-8 pb-3 border-b-2 border-midnight-700">
+        <div
+          data-build="text"
+          data-crew="status-hdr"
+          className="flex items-center gap-3 mb-8 pb-3 border-b-2 border-midnight-700"
+        >
           <Award className="text-arcade-gold" size={24} />
           <div>
             <h2 className="font-pixel text-sm sm:text-lg text-white">
@@ -28,9 +38,12 @@ export const StatusSection: React.FC<StatusSectionProps> = ({ isMuted = false })
           </div>
         </div>
 
-        {/* 16-Bit Character Profile Box with Scroll Pixel Reveal */}
-        <ScrollPixelReveal showBotHelper={true}>
-          <div className="bg-midnight-900 border-4 border-slate-300 p-5 sm:p-8 shadow-pixel relative">
+        {/* 16-Bit Character Profile Box */}
+        <div
+          data-build="box"
+          data-crew="status-card"
+          className="bg-midnight-900 border-4 border-slate-300 p-5 sm:p-8 shadow-pixel relative"
+        >
           <div className="absolute -top-1.5 -left-1.5 w-3 h-3 bg-arcade-gold" />
           <div className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-arcade-gold" />
           <div className="absolute -bottom-1.5 -left-1.5 w-3 h-3 bg-arcade-gold" />
@@ -81,105 +94,127 @@ export const StatusSection: React.FC<StatusSectionProps> = ({ isMuted = false })
               </div>
             </div>
 
-            {/* Middle: Attributes Progress Meters */}
-            <div className="md:col-span-2 space-y-3.5">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div
-                  onMouseEnter={() => soundSynth.playButtonHover(isMuted)}
-                  className="p-3 bg-midnight-950 border border-midnight-700 hover:border-arcade-gold transition-colors"
-                >
-                  <div className="flex justify-between items-center text-[9px] font-pixel mb-1.5">
-                    <span className="text-arcade-gold">CODE SPEED</span>
-                    <span className="text-white">95%</span>
-                  </div>
-                  <div className="w-full h-3 bg-midnight-900 border border-midnight-700 p-0.5">
-                    <div className="w-[95%] h-full bg-arcade-gold" />
-                  </div>
-                </div>
+            {/* Center: Attributes & Core Stats */}
+            <div className="flex flex-col gap-3">
+              <h4 className="font-pixel text-[10px] sm:text-xs text-arcade-gold uppercase border-b border-midnight-700 pb-1 flex items-center gap-1.5">
+                <Zap size={14} /> ATTRIBUTES
+              </h4>
 
-                <div
-                  onMouseEnter={() => soundSynth.playButtonHover(isMuted)}
-                  className="p-3 bg-midnight-950 border border-midnight-700 hover:border-cyan-400 transition-colors"
-                >
-                  <div className="flex justify-between items-center text-[9px] font-pixel mb-1.5">
-                    <span className="text-cyan-400">PIXEL ACCURACY</span>
-                    <span className="text-white">98%</span>
-                  </div>
-                  <div className="w-full h-3 bg-midnight-900 border border-midnight-700 p-0.5">
-                    <div className="w-[98%] h-full bg-cyan-400" />
-                  </div>
-                </div>
-
-                <div
-                  onMouseEnter={() => soundSynth.playButtonHover(isMuted)}
-                  className="p-3 bg-midnight-950 border border-midnight-700 hover:border-spidey-crimson transition-colors"
-                >
-                  <div className="flex justify-between items-center text-[9px] font-pixel mb-1.5">
-                    <span className="text-spidey-crimson">GAME PHYSICS</span>
-                    <span className="text-white">90%</span>
-                  </div>
-                  <div className="w-full h-3 bg-midnight-900 border border-midnight-700 p-0.5">
-                    <div className="w-[90%] h-full bg-spidey-crimson" />
-                  </div>
-                </div>
-
-                <div
-                  onMouseEnter={() => soundSynth.playButtonHover(isMuted)}
-                  className="p-3 bg-midnight-950 border border-midnight-700 hover:border-emerald-400 transition-colors"
-                >
-                  <div className="flex justify-between items-center text-[9px] font-pixel mb-1.5">
-                    <span className="text-emerald-400">SYSTEM RESILIENCE</span>
-                    <span className="text-white">92%</span>
-                  </div>
-                  <div className="w-full h-3 bg-midnight-900 border border-midnight-700 p-0.5">
-                    <div className="w-[92%] h-full bg-emerald-400" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Equipped Inventory */}
-              <div className="p-3.5 bg-midnight-950 border border-midnight-700">
-                <div className="flex items-center gap-2 mb-2">
-                  <Backpack size={14} className="text-arcade-gold" />
-                  <span className="font-pixel text-[9px] sm:text-[10px] text-white">
-                    EQUIPPED INVENTORY
-                  </span>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {[
-                    'React',
-                    'TypeScript',
-                    'Tailwind CSS',
-                    'Framer Motion',
-                    'Phaser.js',
-                    'Godot',
-                    'Node.js',
-                    'Web Audio API',
-                  ].map((item) => (
-                    <span
-                      key={item}
-                      className="font-pixel text-[8px] sm:text-[9px] px-2 py-1 bg-midnight-900 border border-midnight-600 text-slate-300 hover:border-arcade-gold transition-colors"
-                    >
-                      +{item}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {/* Special Move */}
-              <div className="p-3.5 bg-midnight-950 border border-midnight-700 flex items-start gap-3">
-                <Zap size={18} className="text-arcade-gold shrink-0 mt-0.5" />
+              <div className="space-y-3 font-pixel text-[9px] sm:text-[10px]">
                 <div>
-                  <p className="font-pixel text-[9px] text-arcade-gold">SPECIAL MOVE</p>
-                  <p className="font-sub text-base text-slate-300 mt-0.5">
-                    Full-Stack Web Sling: Converts complex monolithic specifications into modular, responsive, and tactile interactive web experiences.
-                  </p>
+                  <div className="flex justify-between text-slate-300 mb-1">
+                    <span>AGILITY (REACT/VITE)</span>
+                    <span className="text-arcade-gold">98/100</span>
+                  </div>
+                  <div className="w-full bg-midnight-950 border border-midnight-700 h-2.5 p-0.5">
+                    <div className="bg-spidey-crimson h-full w-[98%]" />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between text-slate-300 mb-1">
+                    <span>WEB-SHOOTER (TYPESCRIPT)</span>
+                    <span className="text-cyan-400">95/100</span>
+                  </div>
+                  <div className="w-full bg-midnight-950 border border-midnight-700 h-2.5 p-0.5">
+                    <div className="bg-cyan-400 h-full w-[95%]" />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between text-slate-300 mb-1">
+                    <span>ENGINEERING (TAILWIND/CSS)</span>
+                    <span className="text-emerald-400">94/100</span>
+                  </div>
+                  <div className="w-full bg-midnight-950 border border-midnight-700 h-2.5 p-0.5">
+                    <div className="bg-emerald-400 h-full w-[94%]" />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between text-slate-300 mb-1">
+                    <span>AUDIO SYNTHESIS (WEB AUDIO)</span>
+                    <span className="text-purple-400">88/100</span>
+                  </div>
+                  <div className="w-full bg-midnight-950 border border-midnight-700 h-2.5 p-0.5">
+                    <div className="bg-purple-400 h-full w-[88%]" />
+                  </div>
                 </div>
               </div>
+
+              {/* Special Ability */}
+              <div className="mt-2 p-2.5 bg-midnight-950 border border-midnight-700">
+                <span className="font-pixel text-[8px] text-spidey-crimson uppercase block font-bold">
+                  PASSIVE SKILL: SPIDER-SENSE
+                </span>
+                <p className="font-sub text-sm text-slate-300 mt-0.5">
+                  Detects UI layout bugs, unresponsive layouts, and accessibility flaws before shipping.
+                </p>
+              </div>
+            </div>
+
+            {/* Right: Equipped Inventory */}
+            <div className="flex flex-col gap-3">
+              <h4 className="font-pixel text-[10px] sm:text-xs text-arcade-gold uppercase border-b border-midnight-700 pb-1 flex items-center gap-1.5">
+                <Backpack size={14} /> EQUIPPED GEAR
+              </h4>
+
+              <ul className="space-y-2 font-pixel text-[9px] text-slate-300">
+                <li
+                  onMouseEnter={() => soundSynth.playButtonHover(isMuted)}
+                  className="p-2 bg-midnight-950 border border-midnight-700 hover:border-arcade-gold flex items-center gap-2 cursor-default transition-colors"
+                >
+                  <span className="text-arcade-gold">●</span>
+                  <div>
+                    <span className="text-white block">NANOTECH SUIT</span>
+                    <span className="text-[8px] text-slate-400 font-sub text-xs">
+                      React 19 + TypeScript + Tailwind v4
+                    </span>
+                  </div>
+                </li>
+
+                <li
+                  onMouseEnter={() => soundSynth.playButtonHover(isMuted)}
+                  className="p-2 bg-midnight-950 border border-midnight-700 hover:border-cyan-400 flex items-center gap-2 cursor-default transition-colors"
+                >
+                  <span className="text-cyan-400">●</span>
+                  <div>
+                    <span className="text-white block">WEB-SHOOTERS MK-II</span>
+                    <span className="text-[8px] text-slate-400 font-sub text-xs">
+                      HTML5 2D Canvas + Framer Motion
+                    </span>
+                  </div>
+                </li>
+
+                <li
+                  onMouseEnter={() => soundSynth.playButtonHover(isMuted)}
+                  className="p-2 bg-midnight-950 border border-midnight-700 hover:border-emerald-400 flex items-center gap-2 cursor-default transition-colors"
+                >
+                  <span className="text-emerald-400">●</span>
+                  <div>
+                    <span className="text-white block">CHIPTUNE SYNTH MODULE</span>
+                    <span className="text-[8px] text-slate-400 font-sub text-xs">
+                      Web Audio Oscillator API
+                    </span>
+                  </div>
+                </li>
+
+                <li
+                  onMouseEnter={() => soundSynth.playButtonHover(isMuted)}
+                  className="p-2 bg-midnight-950 border border-midnight-700 hover:border-spidey-crimson flex items-center gap-2 cursor-default transition-colors"
+                >
+                  <span className="text-spidey-crimson">●</span>
+                  <div>
+                    <span className="text-white block">SPIDER-BOT COMPANION</span>
+                    <span className="text-[8px] text-slate-400 font-sub text-xs">
+                      Airborne UI Builder Assistant
+                    </span>
+                  </div>
+                </li>
+              </ul>
             </div>
           </div>
         </div>
-      </ScrollPixelReveal>
       </div>
     </section>
   );

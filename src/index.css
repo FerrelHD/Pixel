@@ -74,3 +74,25 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #e11d48;
 }
+
+/* In-Situ Pixel Build Engine Styles (Samuel Rizzon mechanics) */
+[data-build] {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-build][data-solid] {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+[data-solid] .pixel-letter {
+  display: inline-block;
+  transition: transform 0.15s ease, color 0.15s ease;
+}
+
+[data-solid] .pixel-letter:hover {
+  transform: translateY(-2px);
+  color: #facc15;
+}

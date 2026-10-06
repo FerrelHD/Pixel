@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Shield, GitBranch, ExternalLink } from 'lucide-react';
 import { soundSynth } from '../../audio/soundEffects';
-import { ScrollPixelReveal } from '../builder/ScrollPixelReveal';
+import { SectionPixelBuilder } from '../builder/SectionPixelBuilder';
 
 interface MissionsSectionProps {
   isMuted?: boolean;
@@ -54,15 +54,25 @@ const PROJECTS: ProjectCard[] = [
 ];
 
 export const MissionsSection: React.FC<MissionsSectionProps> = ({ isMuted = false }) => {
+  const sectionRef = useRef<HTMLElement>(null);
+
   return (
     <section
+      ref={sectionRef}
       id="missions"
       className="relative w-full py-16 sm:py-24 px-4 sm:px-6 bg-midnight-950 border-t-4 border-midnight-700 select-none scroll-mt-14"
       aria-label="Active Missions"
     >
+      {/* Scroll Pixel Builder Overlay */}
+      <SectionPixelBuilder containerRef={sectionRef} isMuted={isMuted} />
+
       <div className="max-w-5xl mx-auto">
         {/* Section Header */}
-        <div className="flex items-center gap-3 mb-8 pb-3 border-b-2 border-midnight-700">
+        <div
+          data-build="text"
+          data-crew="missions-hdr"
+          className="flex items-center gap-3 mb-8 pb-3 border-b-2 border-midnight-700"
+        >
           <Shield className="text-cyan-400" size={24} />
           <div>
             <h2 className="font-pixel text-sm sm:text-lg text-white">
@@ -76,96 +86,85 @@ export const MissionsSection: React.FC<MissionsSectionProps> = ({ isMuted = fals
 
         {/* Project Quests Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {PROJECTS.map((project, idx) => (
-            <ScrollPixelReveal
+          {PROJECTS.map((project) => (
+            <article
               key={project.id}
-              delay={idx * 140}
-              showBotHelper={idx === 0}
+              data-build="box"
+              data-crew="missions-cards"
+              onMouseEnter={() => soundSynth.playButtonHover(isMuted)}
+              className="bg-midnight-900 border-4 border-midnight-700 hover:border-cyan-400 p-5 shadow-pixel transition-all duration-150 flex flex-col justify-between group h-full"
             >
-              <article
-                onMouseEnter={() => soundSynth.playButtonHover(isMuted)}
-                className="bg-midnight-900 border-4 border-midnight-700 hover:border-cyan-400 p-5 shadow-pixel transition-all duration-150 flex flex-col justify-between group h-full"
-              >
-                <div>
-                  {/* Card Screen Frame */}
-                  <div className="w-full h-32 bg-midnight-950 border-2 border-midnight-800 p-2 mb-4 relative overflow-hidden flex flex-col items-center justify-center">
-                    {/* Subtle pixel grid texture */}
-                    <div className="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:8px_8px] opacity-40" />
+              <div>
+                {/* Card Screen Frame */}
+                <div className="w-full h-32 bg-midnight-950 border-2 border-midnight-800 p-2 mb-4 relative overflow-hidden flex flex-col items-center justify-center">
+                  <div className="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:8px_8px] opacity-40" />
 
-                    {/* Icon representation */}
-                    <div className="relative z-10 flex flex-col items-center">
-                      <span className="font-pixel text-[10px] text-white tracking-widest text-center px-2 py-1 bg-midnight-900/90 border border-midnight-600 mb-1">
-                        {project.badge}
-                      </span>
-                      <span className="font-sub text-sm text-arcade-gold">
-                        SECTOR ACTIVE
-                      </span>
-                    </div>
-
-                    {/* Status Pip */}
-                    <div className="absolute top-2 right-2">
-                      <span
-                        className={`font-pixel text-[7px] px-1.5 py-0.5 border ${
-                          project.status === 'COMPLETED'
-                            ? 'bg-emerald-950 border-emerald-500 text-emerald-400'
-                            : 'bg-amber-950 border-amber-500 text-amber-400'
-                        }`}
-                      >
-                        [{project.status}]
-                      </span>
-                    </div>
+                  <div className="relative z-10 flex flex-col items-center">
+                    <span className="font-pixel text-[10px] text-white tracking-widest text-center px-2 py-1 bg-midnight-900/90 border border-midnight-600 mb-1">
+                      {project.badge}
+                    </span>
+                    <span className="font-sub text-sm text-arcade-gold">
+                      SECTOR ACTIVE
+                    </span>
                   </div>
 
-                  {/* Project Title */}
-                  <h3 className="font-pixel text-xs text-white group-hover:text-cyan-300 transition-colors leading-relaxed">
-                    {project.title}
-                  </h3>
-
-                  {/* Description */}
-                  <p className="font-sub text-base text-slate-300 mt-2 leading-relaxed">
-                    {project.description}
-                  </p>
-                </div>
-
-                {/* Card Footer: Tech tags and links */}
-                <div className="mt-5 pt-3 border-t border-midnight-800">
-                  <div className="flex flex-wrap gap-1.5 mb-3">
-                    {project.tech.map((t) => (
-                      <span
-                        key={t}
-                        className="font-pixel text-[7px] px-1.5 py-0.5 bg-midnight-950 border border-midnight-700 text-pixel-muted"
-                      >
-                        #{t}
-                      </span>
-                    ))}
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <a
-                      href={project.repoUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => soundSynth.playButtonPress(isMuted)}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-midnight-950 hover:bg-midnight-800 border-2 border-slate-600 text-slate-200 font-pixel text-[8px] active:translate-y-0.5 transition-transform"
+                  <div className="absolute top-2 right-2">
+                    <span
+                      className={`font-pixel text-[7px] px-1.5 py-0.5 border ${
+                        project.status === 'COMPLETED'
+                          ? 'bg-emerald-950 border-emerald-500 text-emerald-400'
+                          : 'bg-amber-950 border-amber-500 text-amber-400'
+                      }`}
                     >
-                      <GitBranch size={11} />
-                      <span>REPO</span>
-                    </a>
-
-                    {project.demoUrl && (
-                      <a
-                        href={project.demoUrl}
-                        onClick={() => soundSynth.playButtonPress(isMuted)}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-spidey-crimson hover:bg-red-700 border-2 border-white text-white font-pixel text-[8px] active:translate-y-0.5 transition-transform"
-                      >
-                        <ExternalLink size={11} />
-                        <span>DEMO</span>
-                      </a>
-                    )}
+                      [{project.status}]
+                    </span>
                   </div>
                 </div>
-              </article>
-            </ScrollPixelReveal>
+
+                <h3 className="font-pixel text-xs text-white group-hover:text-cyan-300 transition-colors leading-relaxed">
+                  {project.title}
+                </h3>
+                <p className="font-sub text-sm text-slate-300 mt-2 leading-relaxed">
+                  {project.description}
+                </p>
+
+                <div className="flex flex-wrap gap-1.5 mt-3">
+                  {project.tech.map((t) => (
+                    <span
+                      key={t}
+                      className="font-pixel text-[7px] px-1.5 py-0.5 bg-midnight-950 border border-midnight-700 text-slate-400"
+                    >
+                      {t}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Card Footer Actions */}
+              <div className="flex items-center gap-2 mt-5 pt-3 border-t border-midnight-800">
+                <a
+                  href={project.repoUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => soundSynth.playButtonPress(isMuted)}
+                  className="flex-1 py-1.5 px-2 bg-midnight-950 hover:bg-spidey-crimson/20 border border-midnight-700 hover:border-spidey-crimson font-pixel text-[8px] text-white text-center flex items-center justify-center gap-1.5 transition-colors"
+                >
+                  <GitBranch size={11} className="text-spidey-crimson" />
+                  <span>SOURCE</span>
+                </a>
+
+                {project.demoUrl && (
+                  <a
+                    href={project.demoUrl}
+                    onClick={() => soundSynth.playButtonPress(isMuted)}
+                    className="py-1.5 px-2 bg-midnight-950 hover:bg-cyan-500/20 border border-midnight-700 hover:border-cyan-400 font-pixel text-[8px] text-white text-center flex items-center justify-center gap-1.5 transition-colors"
+                  >
+                    <ExternalLink size={11} className="text-cyan-400" />
+                    <span>TRANSMIT</span>
+                  </a>
+                )}
+              </div>
+            </article>
           ))}
         </div>
       </div>
