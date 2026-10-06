@@ -15,6 +15,7 @@ export const ScrollPixelReveal: React.FC<ScrollPixelRevealProps> = ({
   showBotHelper = false,
 }) => {
   const [isVisible, setIsVisible] = useState(false);
+  const [isBotFlying, setIsBotFlying] = useState(false);
   const elementRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -22,6 +23,8 @@ export const ScrollPixelReveal: React.FC<ScrollPixelRevealProps> = ({
       ([entry]) => {
         if (entry.isIntersecting) {
           setIsVisible(true);
+          setIsBotFlying(true);
+          setTimeout(() => setIsBotFlying(false), 1400);
           observer.disconnect();
         }
       },
@@ -36,15 +39,21 @@ export const ScrollPixelReveal: React.FC<ScrollPixelRevealProps> = ({
   }, []);
 
   return (
-    <div ref={elementRef} className={`relative ${className}`}>
-      {/* Mini Spider-Bot Helper Web drop on reveal */}
-      {showBotHelper && isVisible && (
-        <div className="absolute -top-6 right-4 sm:right-8 z-20 pointer-events-none animate-in fade-in duration-500">
+    <div ref={elementRef} className={`relative overflow-hidden ${className}`}>
+      {/* Flying Spider-Bot Swoop Pass across card during assembly */}
+      {showBotHelper && isBotFlying && (
+        <div
+          className="absolute top-1/2 -translate-y-1/2 z-30 pointer-events-none transition-all duration-1000 ease-out flex items-center"
+          style={{
+            animation: 'flyAcross 1.2s forwards cubic-bezier(0.2, 0.8, 0.2, 1)',
+          }}
+        >
+          {/* Glowing Silk Jet */}
+          <div className="w-16 h-0.5 bg-linear-to-r from-transparent via-cyan-400 to-white shadow-[0_0_8px_#38bdf8]" />
           <SpiderBotSprite
-            size={20}
-            eyeColor="#facc15"
-            hasWeb={true}
-            webHeight={24}
+            size={24}
+            eyeColor="#38bdf8"
+            hasWeb={false}
             isCrawling={true}
           />
         </div>
@@ -61,6 +70,27 @@ export const ScrollPixelReveal: React.FC<ScrollPixelRevealProps> = ({
       >
         {children}
       </div>
+
+      <style>{`
+        @keyframes flyAcross {
+          0% {
+            left: -60px;
+            opacity: 0;
+            transform: translateY(-50%) rotate(-15deg);
+          }
+          20% {
+            opacity: 1;
+          }
+          80% {
+            opacity: 1;
+          }
+          100% {
+            left: 105%;
+            opacity: 0;
+            transform: translateY(-50%) rotate(15deg);
+          }
+        }
+      `}</style>
     </div>
   );
 };

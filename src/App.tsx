@@ -5,8 +5,8 @@ import { StatusSection } from './components/sections/StatusSection';
 import { MissionsSection } from './components/sections/MissionsSection';
 import { SkillsSection } from './components/sections/SkillsSection';
 import { SignalSection } from './components/sections/SignalSection';
-import { SpiderBotsCrewIntro } from './components/builder/SpiderBotsCrewIntro';
-import { SpiderBotCompanion } from './components/companion/SpiderBotCompanion';
+import { FlyingSpiderBotsIntro } from './components/builder/FlyingSpiderBotsIntro';
+import { FlyingSpiderBotCompanion } from './components/companion/FlyingSpiderBotCompanion';
 
 export const App: React.FC = () => {
   const [showIntro, setShowIntro] = useState(true);
@@ -29,9 +29,9 @@ export const App: React.FC = () => {
 
   return (
     <div className="relative min-h-screen bg-midnight-950 text-pixel-light flex flex-col overflow-x-hidden selection:bg-spidey-crimson selection:text-white">
-      {/* 1. Spider-Bots Crew Build Intro Sequence */}
+      {/* 1. Flying Spider-Bots 2D Flight & UI Component Builder Intro */}
       {showIntro && (
-        <SpiderBotsCrewIntro
+        <FlyingSpiderBotsIntro
           onComplete={() => setShowIntro(false)}
           isMuted={isMuted}
         />
@@ -67,8 +67,8 @@ export const App: React.FC = () => {
         <SignalSection isMuted={isMuted} />
       </main>
 
-      {/* 4. Interactive Spider-Bot Companion */}
-      <SpiderBotCompanion isMuted={isMuted} />
+      {/* 4. Interactive Airborne Flying Spider-Bot Companion */}
+      <FlyingSpiderBotCompanion isMuted={isMuted} />
 
       {/* 5. CRT Scanlines & Monitor Vignette Filter */}
       {isCrtOn && <div className="crt-overlay crt-flicker" aria-hidden="true" />}
