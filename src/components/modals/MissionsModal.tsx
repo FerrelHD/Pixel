@@ -1,40 +1,13 @@
 import React, { useEffect } from 'react';
 import { X, Shield, ExternalLink, GitBranch } from 'lucide-react';
 import { soundSynth } from '../../audio/soundEffects';
-import { ProjectQuest } from '../../types';
+import { REAL_PROJECTS } from '../../data/projects';
 
 interface MissionsModalProps {
   isOpen: boolean;
   onClose: () => void;
   isMuted?: boolean;
 }
-
-const MISSIONS: ProjectQuest[] = [
-  {
-    id: 'm1',
-    title: 'SPIDEY PIXEL RETRO PORTFOLIO',
-    category: 'Web',
-    status: 'COMPLETED',
-    description: '16-bit retro RPG portfolio featuring custom NYC skyline canvas, handcrafted pixel Spider-Man sprite, and procedural 8-bit sound synthesis.',
-    tech: ['React', 'TypeScript', 'Tailwind CSS', 'Framer Motion', 'Web Audio API'],
-  },
-  {
-    id: 'm2',
-    title: 'RETRO 2D PLATFORMER ENGINE',
-    category: 'Game',
-    status: 'IN_PROGRESS',
-    description: 'Tile-based 2D physics engine with sprite-sheet animations, collision detection, and responsive keyboard controls.',
-    tech: ['TypeScript', 'HTML5 Canvas', 'Game Loop', 'Web Audio API'],
-  },
-  {
-    id: 'm3',
-    title: 'DEV COMMAND CENTER',
-    category: 'Engine',
-    status: 'COMPLETED',
-    description: 'Interactive dashboard for indie developers featuring project tracking, pixel-art metrics, and modular API endpoints.',
-    tech: ['React', 'Node.js', 'PostgreSQL', 'Tailwind CSS'],
-  },
-];
 
 export const MissionsModal: React.FC<MissionsModalProps> = ({
   isOpen,
@@ -73,7 +46,7 @@ export const MissionsModal: React.FC<MissionsModalProps> = ({
           <div className="flex items-center gap-2">
             <Shield className="text-cyan-400" size={20} />
             <h2 id="missions-title" className="font-pixel text-sm sm:text-base text-white">
-              ACTIVE MISSIONS &amp; QUESTS
+              ACTIVE MISSIONS &amp; GITHUB QUESTS
             </h2>
           </div>
           <button
@@ -82,7 +55,7 @@ export const MissionsModal: React.FC<MissionsModalProps> = ({
               soundSynth.playCloseSound(isMuted);
               onClose();
             }}
-            className="p-1 text-pixel-muted hover:text-white hover:bg-midnight-800 border border-transparent hover:border-slate-500"
+            className="p-1 text-pixel-muted hover:text-white hover:bg-midnight-800 border border-transparent hover:border-slate-500 cursor-pointer"
             aria-label="Close missions"
           >
             <X size={18} />
@@ -90,76 +63,67 @@ export const MissionsModal: React.FC<MissionsModalProps> = ({
         </div>
 
         <div className="mt-4 space-y-3.5 max-h-[75vh] overflow-y-auto pr-1">
-          {MISSIONS.map((mission) => (
+          {REAL_PROJECTS.map((mission) => (
             <article
               key={mission.id}
               className="p-3.5 bg-midnight-900 border-2 border-midnight-700 hover:border-cyan-400/80 transition-colors"
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <h3 className="font-pixel text-xs text-cyan-300">
-                  {mission.title}
-                </h3>
-                <span
-                  className={`font-pixel text-[8px] px-2 py-0.5 border ${
-                    mission.status === 'COMPLETED'
-                      ? 'bg-emerald-950 border-emerald-500 text-emerald-400'
-                      : 'bg-amber-950 border-amber-500 text-amber-400'
-                  }`}
-                >
-                  [{mission.status}]
+                <div className="flex items-center gap-2">
+                  <span className="font-pixel text-[8px] px-1.5 py-0.5 bg-midnight-950 border border-arcade-gold text-arcade-gold">
+                    {mission.rank}
+                  </span>
+                  <h3 className="font-pixel text-xs text-cyan-300">
+                    {mission.title}
+                  </h3>
+                </div>
+                <span className="font-pixel text-[8px] text-emerald-400 px-1.5 py-0.5 bg-midnight-950 border border-emerald-600">
+                  {mission.status}
                 </span>
               </div>
 
-              <p className="font-sub text-base text-slate-300 mt-2 leading-relaxed">
+              <p className="font-sub text-sm text-slate-300 mt-2 leading-relaxed">
                 {mission.description}
               </p>
 
-              <div className="flex flex-wrap items-center justify-between gap-2 mt-3 pt-2 border-t border-midnight-800">
-                <div className="flex flex-wrap gap-1.5">
-                  {mission.tech.map((t) => (
-                    <span
-                      key={t}
-                      className="font-pixel text-[8px] px-2 py-0.5 bg-midnight-950 border border-midnight-700 text-pixel-muted"
-                    >
-                      #{t}
-                    </span>
-                  ))}
-                </div>
-                <div className="flex items-center gap-2">
+              <div className="flex flex-wrap gap-1.5 mt-2.5">
+                {mission.tech.map((t) => (
+                  <span
+                    key={t}
+                    className="font-pixel text-[7px] px-1.5 py-0.5 bg-midnight-950 border border-midnight-700 text-slate-400"
+                  >
+                    {t}
+                  </span>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-3 mt-3 pt-2 border-t border-midnight-800 text-[8px] font-pixel">
+                <a
+                  href={mission.repoUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => soundSynth.playButtonPress(isMuted)}
+                  className="text-spidey-crimson hover:underline flex items-center gap-1"
+                >
+                  <GitBranch size={11} />
+                  <span>GITHUB REPO</span>
+                </a>
+
+                {mission.demoUrl && (
                   <a
-                    href="https://github.com"
+                    href={mission.demoUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-1 font-pixel text-[8px] text-cyan-400 hover:text-white px-2 py-1 bg-midnight-950 border border-midnight-700 active:translate-y-0.5"
+                    onClick={() => soundSynth.playButtonPress(isMuted)}
+                    className="text-cyan-400 hover:underline flex items-center gap-1"
                   >
-                    <GitBranch size={10} />
-                    <span>REPO</span>
+                    <ExternalLink size={11} />
+                    <span>LIVE DEMO ↗</span>
                   </a>
-                  <a
-                    href="#"
-                    onClick={(e) => e.preventDefault()}
-                    className="flex items-center gap-1 font-pixel text-[8px] text-arcade-gold hover:text-white px-2 py-1 bg-midnight-950 border border-midnight-700 active:translate-y-0.5"
-                  >
-                    <ExternalLink size={10} />
-                    <span>DEMO</span>
-                  </a>
-                </div>
+                )}
               </div>
             </article>
           ))}
-        </div>
-
-        <div className="mt-4 pt-3 border-t border-midnight-700 flex justify-end">
-          <button
-            type="button"
-            onClick={() => {
-              soundSynth.playCloseSound(isMuted);
-              onClose();
-            }}
-            className="px-4 py-2 bg-midnight-800 hover:bg-midnight-700 border-2 border-slate-400 font-pixel text-[10px] text-white shadow-pixel-sm active:translate-y-0.5"
-          >
-            [CLOSE ESC]
-          </button>
         </div>
       </div>
     </div>

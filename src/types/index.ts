@@ -1,14 +1,21 @@
 export type ModalType = 'status' | 'missions' | 'skills' | 'signal' | null;
 
+export type SpideySuit = 'classic' | 'symbiote' | '2099';
+
 export interface ProjectQuest {
   id: string;
   title: string;
-  category: 'Game' | 'Web' | 'Engine';
+  subtitle: string;
+  category: 'web' | 'game' | 'ai';
+  rank: 'S-CLASS' | 'A-CLASS';
   status: 'COMPLETED' | 'IN_PROGRESS';
   description: string;
+  lore: string;
   tech: string[];
-  link?: string;
-  github?: string;
+  repoUrl: string;
+  demoUrl?: string;
+  badge: string;
+  accentColor: string;
 }
 
 export interface SkillCategory {
