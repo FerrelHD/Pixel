@@ -1,5 +1,5 @@
 // Authentic In-Situ Pixel Engine based on Samuel Rizzon's DOM-to-canvas rasterizer
-// and Spring-Physics Spider-Bot Agent Swarm
+// with Varied Spider-Bot Build Styles & Persistent Floating/Perching Idle Behavior
 
 export interface PixelPiece {
   tx: number;       // target X on canvas
@@ -18,6 +18,7 @@ export interface PixelPiece {
   lineTop: number;  // baseline Y
   color: string;    // pixel color
   state: 'waiting' | 'flying' | 'home' | 'fading' | 'gone';
+  bounce?: number;  // for kinetic drops
 }
 
 export function makePiece(
@@ -45,6 +46,7 @@ export function makePiece(
     lineTop,
     color,
     state: 'waiting',
+    bounce: 0,
   };
 }
 
@@ -85,7 +87,6 @@ export function getTextRuns(element: HTMLElement, containerRect: DOMRect): TextR
       const relLeft = Math.round(r.left - containerRect.left);
 
       const last = runs[runs.length - 1];
-      // Group nearby characters on the same line into word/run blocks
       if (last && Math.abs(last.top - relTop) < 3 && Math.abs((last.left + last.width) - relLeft) < 14) {
         last.text += text[i];
         last.width = (relLeft + r.width) - last.left;
@@ -128,7 +129,6 @@ export function rasterizeText(
   canvas.width = Math.max(1, Math.ceil(metrics.width) + 4);
   canvas.height = Math.max(1, ascent + descent + 4);
 
-  // Redraw with font settings after resize
   ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
   ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = '#ffffff';
@@ -153,7 +153,7 @@ export function rasterizeText(
 }
 
 /**
- * Extract pixel pieces for any DOM element (text, box, ring, image)
+ * Extract pixel pieces for any DOM element (text, box, ring)
  */
 export function piecesOf(
   element: HTMLElement,
@@ -253,10 +253,12 @@ export function piecesOf(
     }
   }
 
-  // Sort pieces by line top, then left, for natural top-to-bottom, left-to-right assembly
   pieces.sort((a, b) => a.lineTop - b.lineTop || a.tx - b.tx || a.ty - b.ty);
   return pieces;
 }
+
+export type BuildStyle = 'websling' | 'scan' | 'drop' | 'flank';
+export type BotMode = 'building' | 'floating' | 'perched';
 
 export interface SpiderBotAgent {
   id: number;
@@ -275,12 +277,26 @@ export interface SpiderBotAgent {
   gone: boolean;
   primaryColor: string;
   eyeColor: string;
+
+  // Varied animation & floating properties
+  buildStyle: BuildStyle;
+  mode: BotMode;
+  idleTargetX: number;
+  idleTargetY: number;
+  floatFreq: number;
+  floatAmp: number;
+  stuntAngle: number;
+  stuntTimer: number;
+  emote: string | null;
+  emoteTimer: number;
+  sonarRadius: number;
+  sonarTimer: number;
 }
 
 export const BOT_SHADES = [
   { primary: '#dc2626', eye: '#38bdf8' }, // Spidey Red & Cyan
   { primary: '#0284c7', eye: '#facc15' }, // Web Navy & Gold
-  { primary: '#991b1b', eye: '#22d3ee' }, // Crimson & Blue
+  { primary: '#b91c1c', eye: '#22d3ee' }, // Crimson & Blue
   { primary: '#ca8a04', eye: '#38bdf8' }, // Gold & Cyan
 ];
 
@@ -298,17 +314,62 @@ const SPIDER_BOT_SPRITE = [
   'l..l....l..l',
 ];
 
+const PERCHED_LEGS = [
+  '..llll..llll..',
+  '.l..........l.',
+];
+
 export function drawSpiderBot(
   ctx: CanvasRenderingContext2D,
   bot: SpiderBotAgent,
   scale: number,
   time: number
 ) {
+  ctx.save();
+
+  // Acrobatic flip / barrel roll rotation
+  if (bot.stuntAngle > 0) {
+    ctx.translate(bot.x, bot.y);
+    ctx.rotate((bot.stuntAngle * Math.PI) / 180);
+    ctx.translate(-bot.x, -bot.y);
+  }
+
   const spriteW = 12 * scale;
   const spriteH = 7 * scale;
   const startX = Math.round(bot.x - spriteW / 2);
   const startY = Math.round(bot.y - spriteH);
 
+  // 1. Draw Build-Style specific visual effects
+  if (bot.mode === 'building') {
+    const activePiece = bot.job.find((p) => p.state === 'flying');
+
+    if (bot.buildStyle === 'websling' && activePiece) {
+      // Glowing web silk thread connecting bot to the descending block
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(bot.x, bot.y);
+      const midX = (bot.x + activePiece.x) / 2 + (bot.face > 0 ? 12 : -12);
+      const midY = (bot.y + activePiece.y) / 2 - 14;
+      ctx.quadraticCurveTo(midX, midY, activePiece.x, activePiece.y);
+      ctx.stroke();
+    } else if (bot.buildStyle === 'scan') {
+      // Vertical cyan laser scanner beam
+      const beamHeight = 45;
+      const grad = ctx.createLinearGradient(bot.x, startY + spriteH, bot.x, startY + spriteH + beamHeight);
+      grad.addColorStop(0, 'rgba(56, 189, 248, 0.55)');
+      grad.addColorStop(1, 'rgba(56, 189, 248, 0)');
+
+      ctx.fillStyle = grad;
+      ctx.fillRect(bot.x - 7, startY + spriteH, 14, beamHeight);
+
+      // Thin bright laser line
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillRect(bot.x - 0.75, startY + spriteH, 1.5, beamHeight * 0.75);
+    }
+  }
+
+  // 2. Draw Main Spider-Bot Pixel Body
   SPIDER_BOT_SPRITE.forEach((row, r) => {
     for (let c = 0; c < row.length; c++) {
       const char = row[c];
@@ -330,15 +391,72 @@ export function drawSpiderBot(
     }
   });
 
-  // Animated cyan thruster jet flame / web trail under bot
-  if (bot.fly) {
+  // 3. Draw Legs (Grounded when perched, or jet thrusters when airborne)
+  if (bot.mode === 'perched') {
+    // Folded mechanical resting legs
+    ctx.fillStyle = '#1e293b';
+    PERCHED_LEGS.forEach((row, r) => {
+      for (let c = 0; c < row.length; c++) {
+        if (row[c] === 'l') {
+          ctx.fillRect(startX + c * scale - 1, startY + spriteH + r * scale, scale, scale);
+        }
+      }
+    });
+  } else if (bot.fly) {
+    // Animated dual cyan thruster jets
     const pulse = Math.floor(time / 70) % 2;
     ctx.fillStyle = '#38bdf8';
     ctx.globalAlpha = 0.85;
     const jetY = startY + spriteH;
-    const flameH = scale * (pulse ? 1.5 : 2.5);
+    const flameH = scale * (pulse ? 1.4 : 2.2);
     ctx.fillRect(startX + 3 * scale, jetY, scale * 2, flameH);
     ctx.fillRect(startX + 7 * scale, jetY, scale * 2, flameH);
     ctx.globalAlpha = 1.0;
+
+    // Floating idle micro-ember particle
+    if (bot.mode === 'floating' && pulse) {
+      ctx.fillStyle = '#38bdf8';
+      ctx.globalAlpha = 0.6;
+      ctx.fillRect(startX + 5 * scale, jetY + flameH + 2, 2, 2);
+      ctx.globalAlpha = 1.0;
+    }
   }
+
+  // 4. Sonar Radar Pulse Ring (occasional idle effect)
+  if (bot.sonarRadius > 0) {
+    ctx.strokeStyle = '#38bdf8';
+    ctx.globalAlpha = Math.max(0, 1 - bot.sonarRadius / 40);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(bot.x, bot.y, bot.sonarRadius, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 1.0;
+  }
+
+  // 5. Mini Pixel Emote Speech Bubble (when clicked or excited)
+  if (bot.emote) {
+    const bubbleW = 18;
+    const bubbleH = 14;
+    const bx = Math.round(bot.x - bubbleW / 2);
+    const by = Math.round(startY - bubbleH - 4);
+
+    ctx.fillStyle = '#0a0e1a';
+    ctx.fillRect(bx, by, bubbleW, bubbleH);
+    ctx.strokeStyle = '#facc15';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(bx, by, bubbleW, bubbleH);
+
+    // Bubble pointer notch
+    ctx.fillStyle = '#facc15';
+    ctx.fillRect(bot.x - 1, by + bubbleH, 2, 2);
+
+    // Emote text symbol
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(bot.emote, bot.x, by + bubbleH / 2);
+  }
+
+  ctx.restore();
 }

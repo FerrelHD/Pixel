@@ -5,6 +5,7 @@ import {
   SpiderBotAgent,
   PixelPiece,
   BOT_SHADES,
+  BuildStyle,
 } from '../../utils/pixelEngine';
 import { soundSynth } from '../../audio/soundEffects';
 
@@ -20,10 +21,10 @@ export const HeroPixelBuilder: React.FC<HeroPixelBuilderProps> = ({
   onComplete,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [isDone, setIsDone] = useState(false);
   const [showSkip, setShowSkip] = useState(true);
   const animFrameRef = useRef<number>(0);
   const isSkippedRef = useRef<boolean>(false);
+  const agentsRef = useRef<SpiderBotAgent[]>([]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -35,11 +36,42 @@ export const HeroPixelBuilder: React.FC<HeroPixelBuilderProps> = ({
 
     let destroyed = false;
     let lastTime = performance.now();
+    let containerWidth = container.offsetWidth;
+    let containerHeight = container.offsetHeight;
+
+    const mousePos = { x: -999, y: -999 };
+
+    // Pointer move listener on container to track cursor for interactive floating bots
+    const handlePointerMove = (e: MouseEvent) => {
+      const rect = container.getBoundingClientRect();
+      mousePos.x = e.clientX - rect.left;
+      mousePos.y = e.clientY - rect.top;
+    };
+
+    // Pointer down listener to trigger stunt when clicking near a bot
+    const handlePointerDown = (e: MouseEvent) => {
+      const rect = container.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
+
+      agentsRef.current.forEach((bot) => {
+        const dist = Math.hypot(clickX - bot.x, clickY - bot.y);
+        if (dist < 45) {
+          bot.stuntTimer = 0.6;
+          bot.stuntAngle = 10;
+          bot.emote = ['⚡', '!', '🕸️', '★'][Math.floor(Math.random() * 4)];
+          bot.emoteTimer = 1.8;
+          soundSynth.playButtonPress(isMuted);
+        }
+      });
+    };
+
+    window.addEventListener('mousemove', handlePointerMove);
+    window.addEventListener('mousedown', handlePointerDown);
 
     const handleSkip = () => {
       if (isSkippedRef.current) return;
       isSkippedRef.current = true;
-      cancelAnimationFrame(animFrameRef.current);
 
       // Make all DOM elements solid immediately
       const elements = container.querySelectorAll<HTMLElement>('[data-build]');
@@ -47,10 +79,14 @@ export const HeroPixelBuilder: React.FC<HeroPixelBuilderProps> = ({
         el.setAttribute('data-solid', 'true');
       });
 
-      if (ctx) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-      }
-      setIsDone(true);
+      // Transition bots immediately to their floating/perched positions
+      agentsRef.current.forEach((agent) => {
+        agent.mode = agent.id === 2 ? 'perched' : 'floating';
+        agent.x = agent.idleTargetX;
+        agent.y = agent.idleTargetY;
+        agent.job.forEach((p) => (p.state = 'gone'));
+      });
+
       setShowSkip(false);
       if (onComplete) onComplete();
     };
@@ -63,7 +99,6 @@ export const HeroPixelBuilder: React.FC<HeroPixelBuilderProps> = ({
     window.addEventListener('keydown', handleKeyDown);
 
     const initBuild = async () => {
-      // Wait for pixel fonts to be fully rendered
       if (document.fonts) {
         await document.fonts.ready;
       }
@@ -71,26 +106,22 @@ export const HeroPixelBuilder: React.FC<HeroPixelBuilderProps> = ({
 
       const containerRect = container.getBoundingClientRect();
       const dpr = Math.min(2, window.devicePixelRatio || 1);
-      const width = containerRect.width;
-      const height = containerRect.height;
+      containerWidth = containerRect.width;
+      containerHeight = containerRect.height;
 
-      canvas.width = Math.round(width * dpr);
-      canvas.height = Math.round(height * dpr);
-      canvas.style.width = `${width}px`;
-      canvas.style.height = `${height}px`;
+      canvas.width = Math.round(containerWidth * dpr);
+      canvas.height = Math.round(containerHeight * dpr);
+      canvas.style.width = `${containerWidth}px`;
+      canvas.style.height = `${containerHeight}px`;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      // Query all elements intended for in-situ build
       const buildElements = Array.from(
         container.querySelectorAll<HTMLElement>('[data-build]')
       );
 
-      // If elements are already solid (e.g. from previous skip), mark done
-      if (buildElements.every((el) => el.hasAttribute('data-solid'))) {
-        setIsDone(true);
-        setShowSkip(false);
-        return;
-      }
+      const isAlreadySolid =
+        buildElements.length > 0 &&
+        buildElements.every((el) => el.hasAttribute('data-solid'));
 
       // Extract pieces for each DOM element
       const elementJobs = buildElements.map((el) => {
@@ -101,7 +132,7 @@ export const HeroPixelBuilder: React.FC<HeroPixelBuilderProps> = ({
           el,
           group,
           pieces,
-          isSolid: false,
+          isSolid: isAlreadySolid,
         };
       });
 
@@ -114,17 +145,34 @@ export const HeroPixelBuilder: React.FC<HeroPixelBuilderProps> = ({
       });
 
       const groups = Array.from(groupMap.keys());
+      const styleList: BuildStyle[] = ['websling', 'scan', 'drop', 'flank'];
+
+      // Spawn Spider-Bot Agents
       const agents: SpiderBotAgent[] = groups.map((grpName, idx) => {
         const groupJobs = groupMap.get(grpName) || [];
         const pieces = groupJobs.flatMap((j) => j.pieces);
         const shade = BOT_SHADES[idx % BOT_SHADES.length];
-        const startX = idx % 2 === 0 ? -40 : width + 40;
-        const startY = 40 + (idx * height) / Math.max(1, groups.length);
+        const startX = idx % 2 === 0 ? -40 : containerWidth + 40;
+        const startY = 30 + (idx * containerHeight) / Math.max(1, groups.length);
+
+        // Compute idle home coordinates based on assigned elements
+        let idleX = containerWidth * (0.2 + 0.2 * idx);
+        let idleY = containerHeight * 0.45;
+        if (groupJobs.length > 0) {
+          const firstElemRect = groupJobs[0].el.getBoundingClientRect();
+          idleX = firstElemRect.left - containerRect.left + firstElemRect.width + (idx % 2 === 0 ? 15 : -15);
+          idleY = firstElemRect.top - containerRect.top - 18;
+          // Keep inside screen
+          idleX = Math.max(40, Math.min(containerWidth - 40, idleX));
+          idleY = Math.max(30, Math.min(containerHeight - 50, idleY));
+        }
+
+        const buildStyle = styleList[idx % styleList.length];
 
         return {
           id: idx,
-          x: startX,
-          y: startY,
+          x: isAlreadySolid ? idleX : startX,
+          y: isAlreadySolid ? idleY : startY,
           vx: 0,
           vy: 0,
           face: startX < 0 ? 1 : -1,
@@ -133,45 +181,83 @@ export const HeroPixelBuilder: React.FC<HeroPixelBuilderProps> = ({
           fly: true,
           job: pieces,
           t: 0,
-          delay: 0.12 * idx,
+          delay: isAlreadySolid ? 0 : 0.08 * idx,
           leaving: false,
           gone: false,
           primaryColor: shade.primary,
           eyeColor: shade.eye,
+          buildStyle,
+          mode: isAlreadySolid ? (idx === 2 ? 'perched' : 'floating') : 'building',
+          idleTargetX: idleX,
+          idleTargetY: idleY,
+          floatFreq: 1.8 + idx * 0.4,
+          floatAmp: 4 + idx * 1.5,
+          stuntAngle: 0,
+          stuntTimer: 0,
+          emote: null,
+          emoteTimer: 0,
+          sonarRadius: 0,
+          sonarTimer: 3 + idx * 2,
         };
       });
+
+      agentsRef.current = agents;
+
+      if (isAlreadySolid) {
+        setShowSkip(false);
+      }
 
       let blipCounter = 0;
 
       const loop = (now: number) => {
-        if (destroyed || isSkippedRef.current) return;
+        if (destroyed) return;
         const dt = Math.min(1 / 30, (now - lastTime) / 1000);
         lastTime = now;
 
-        ctx.clearRect(0, 0, width, height);
+        ctx.clearRect(0, 0, containerWidth, containerHeight);
 
-        // Update agents
+        // Update Agents
         agents.forEach((agent) => {
-          if (agent.delay > 0) {
-            agent.delay -= dt;
-            return;
+          // Timer countdowns
+          if (agent.stuntTimer > 0) {
+            agent.stuntTimer -= dt;
+            agent.stuntAngle = (agent.stuntAngle + 720 * dt) % 360;
+            if (agent.stuntTimer <= 0) agent.stuntAngle = 0;
           }
 
-          if (agent.leaving) {
-            agent.vy -= 800 * dt;
-            agent.vx += 160 * agent.face * dt;
-            agent.x += agent.vx * dt;
-            agent.y += agent.vy * dt;
-            if (agent.y < -80 || agent.x < -80 || agent.x > width + 80) {
-              agent.gone = true;
+          if (agent.emoteTimer > 0) {
+            agent.emoteTimer -= dt;
+            if (agent.emoteTimer <= 0) agent.emote = null;
+          }
+
+          // Sonar radar pulse
+          agent.sonarTimer -= dt;
+          if (agent.sonarTimer <= 0) {
+            agent.sonarRadius = 1;
+            agent.sonarTimer = 6 + Math.random() * 5;
+          }
+          if (agent.sonarRadius > 0) {
+            agent.sonarRadius += 35 * dt;
+            if (agent.sonarRadius > 35) agent.sonarRadius = 0;
+          }
+
+          // Eye blinking
+          agent.blink -= dt;
+          if (agent.blink <= -3) {
+            agent.blink = 0.15; // blink duration
+          }
+
+          if (agent.mode === 'building') {
+            if (agent.delay > 0) {
+              agent.delay -= dt;
+              return;
             }
-          } else {
+
             agent.t += dt;
-            // Progressive emission of pieces
             const totalPieces = agent.job.length;
             const targetCount = Math.min(
               totalPieces,
-              Math.ceil((agent.t / 1.35) * totalPieces)
+              Math.ceil((agent.t / 1.3) * totalPieces)
             );
 
             let activePiece: PixelPiece | null = null;
@@ -190,11 +276,20 @@ export const HeroPixelBuilder: React.FC<HeroPixelBuilderProps> = ({
               activePiece = piece;
             }
 
-            // Bot follows the active workhead
+            // Varied movement path based on buildStyle
             if (activePiece) {
-              const targetX = activePiece.tx;
-              const targetY =
-                activePiece.ty - 26 + Math.sin(now / 120 + agent.id) * 3;
+              let targetX = activePiece.tx;
+              let targetY = activePiece.ty - 24;
+
+              if (agent.buildStyle === 'websling') {
+                targetX += Math.cos(now / 140) * 8;
+                targetY -= 6;
+              } else if (agent.buildStyle === 'scan') {
+                targetY = activePiece.ty - 34; // higher scan altitude
+              } else if (agent.buildStyle === 'drop') {
+                targetY = activePiece.ty - 20;
+              }
+
               agent.vx += ((targetX - agent.x) * 240 - 26 * agent.vx) * dt;
               agent.vy += ((targetY - agent.y) * 240 - 26 * agent.vy) * dt;
               agent.x += agent.vx * dt;
@@ -204,23 +299,78 @@ export const HeroPixelBuilder: React.FC<HeroPixelBuilderProps> = ({
               }
             }
 
-            // Check if agent finished all pieces
+            // Check if building complete for this agent
             if (
               targetCount >= totalPieces &&
-              agent.job.every((p) => p.state === 'home' || p.state === 'fading' || p.state === 'gone')
+              agent.job.every(
+                (p) => p.state === 'home' || p.state === 'fading' || p.state === 'gone'
+              )
             ) {
-              agent.leaving = true;
-              agent.vy = -60;
+              // Transition to persistent FLOATING or PERCHED mode! (DO NOT DISAPPEAR)
+              agent.mode = agent.id === 2 ? 'perched' : 'floating';
+              agent.vx = 0;
+              agent.vy = 0;
             }
+          } else {
+            // Mode: FLOATING or PERCHED
+            // Smooth sine-wave hover calculation
+            const hoverBob = Math.sin((now / 1000) * agent.floatFreq) * agent.floatAmp;
+            let targetX = agent.idleTargetX;
+            let targetY = agent.idleTargetY + hoverBob;
+
+            // Interactive mouse tracking
+            if (mousePos.x > 0 && mousePos.y > 0) {
+              const dx = mousePos.x - agent.x;
+              const dy = mousePos.y - agent.y;
+              const dist = Math.hypot(dx, dy);
+
+              // Look towards mouse
+              agent.face = dx > 0 ? 1 : -1;
+
+              // Gentle evasive float if mouse gets too close
+              if (dist < 55) {
+                targetX -= (dx / dist) * 16;
+                targetY -= (dy / dist) * 16;
+              }
+            }
+
+            // Patrol motion for Bot 3
+            if (agent.id === 3 && agent.mode === 'floating') {
+              targetX += Math.sin(now / 1600) * 80;
+            }
+
+            // Soft spring towards idle position
+            agent.vx += ((targetX - agent.x) * 45 - 8 * agent.vx) * dt;
+            agent.vy += ((targetY - agent.y) * 45 - 8 * agent.vy) * dt;
+            agent.x += agent.vx * dt;
+            agent.y += agent.vy * dt;
           }
 
-          // Update pieces easing
+          // Update pieces easing & trajectories
           agent.job.forEach((piece) => {
             if (piece.state === 'flying') {
               piece.f = Math.min(1, piece.f + dt / 0.15);
               const ease = 1 - Math.pow(1 - piece.f, 3);
-              piece.x = piece.ox + (piece.tx - piece.ox) * ease;
-              piece.y = piece.oy + (piece.ty - piece.oy) * ease;
+
+              if (agent.buildStyle === 'websling') {
+                // Curved swing trajectory
+                const curveArc = Math.sin(piece.f * Math.PI) * 12;
+                piece.x = piece.ox + (piece.tx - piece.ox) * ease;
+                piece.y = piece.oy + (piece.ty - piece.oy) * ease - curveArc;
+              } else if (agent.buildStyle === 'drop') {
+                // Gravity acceleration drop with micro bounce
+                const gravEase = Math.pow(piece.f, 2.2);
+                piece.x = piece.ox + (piece.tx - piece.ox) * ease;
+                piece.y = piece.oy + (piece.ty - piece.oy) * gravEase;
+                if (piece.f > 0.85) {
+                  piece.bounce = Math.sin((piece.f - 0.85) * 6.6 * Math.PI) * 2.5;
+                  piece.y -= piece.bounce;
+                }
+              } else {
+                piece.x = piece.ox + (piece.tx - piece.ox) * ease;
+                piece.y = piece.oy + (piece.ty - piece.oy) * ease;
+              }
+
               if (piece.f >= 1) {
                 piece.state = 'home';
                 piece.x = piece.tx;
@@ -244,7 +394,6 @@ export const HeroPixelBuilder: React.FC<HeroPixelBuilderProps> = ({
             if (allHome && job.pieces.length > 0) {
               job.isSolid = true;
               job.el.setAttribute('data-solid', 'true');
-              // Fade out canvas pieces so the crisp DOM element takes over cleanly
               job.pieces.forEach((p) => {
                 p.state = 'fading';
                 p.f = 0;
@@ -252,6 +401,12 @@ export const HeroPixelBuilder: React.FC<HeroPixelBuilderProps> = ({
             }
           }
         });
+
+        // Hide skip button once all solid
+        if (showSkip && elementJobs.every((j) => j.isSolid)) {
+          setShowSkip(false);
+          if (onComplete) onComplete();
+        }
 
         // Draw settled and flying pieces on canvas
         let lastColor = '';
@@ -273,24 +428,10 @@ export const HeroPixelBuilder: React.FC<HeroPixelBuilderProps> = ({
 
         ctx.globalAlpha = 1.0;
 
-        // Draw Spider-Bots
+        // Draw all persistent Spider-Bots (both building & floating/perched!)
         agents.forEach((agent) => {
-          if (!agent.gone) {
-            drawSpiderBot(ctx, agent, 3, now);
-          }
+          drawSpiderBot(ctx, agent, 3, now);
         });
-
-        // All done check
-        const allSolid = elementJobs.every((j) => j.isSolid);
-        const allBotsGone = agents.every((a) => a.gone);
-
-        if (allSolid && allBotsGone) {
-          ctx.clearRect(0, 0, width, height);
-          setIsDone(true);
-          setShowSkip(false);
-          if (onComplete) onComplete();
-          return;
-        }
 
         animFrameRef.current = requestAnimationFrame(loop);
       };
@@ -302,12 +443,12 @@ export const HeroPixelBuilder: React.FC<HeroPixelBuilderProps> = ({
 
     return () => {
       destroyed = true;
+      window.removeEventListener('mousemove', handlePointerMove);
+      window.removeEventListener('mousedown', handlePointerDown);
       window.removeEventListener('keydown', handleKeyDown);
       cancelAnimationFrame(animFrameRef.current);
     };
-  }, [containerRef, isMuted, onComplete]);
-
-  if (isDone) return null;
+  }, [containerRef, isMuted, onComplete, showSkip]);
 
   return (
     <>
@@ -326,7 +467,12 @@ export const HeroPixelBuilder: React.FC<HeroPixelBuilderProps> = ({
                 .querySelectorAll<HTMLElement>('[data-build]')
                 .forEach((el) => el.setAttribute('data-solid', 'true'));
             }
-            setIsDone(true);
+            agentsRef.current.forEach((agent) => {
+              agent.mode = agent.id === 2 ? 'perched' : 'floating';
+              agent.x = agent.idleTargetX;
+              agent.y = agent.idleTargetY;
+              agent.job.forEach((p) => (p.state = 'gone'));
+            });
             setShowSkip(false);
             if (onComplete) onComplete();
           }}
