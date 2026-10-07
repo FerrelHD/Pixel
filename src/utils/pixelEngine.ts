@@ -8,17 +8,14 @@ export interface PixelPiece {
   th: number;       // target height
   x: number;        // current X
   y: number;        // current Y
-  w: number;        // current width
-  h: number;        // current height
-  vx: number;       // velocity x
-  vy: number;       // velocity y
   ox: number;       // origin X
   oy: number;       // origin Y
-  f: number;        // progress 0..1
+  f: number;        // progress 0..1 (flight) / seconds (fading)
+  dur: number;      // flight duration in seconds
   lineTop: number;  // baseline Y
   color: string;    // pixel color
+  owner: number;    // index of the element job this piece belongs to
   state: 'waiting' | 'flying' | 'home' | 'fading' | 'gone';
-  bounce?: number;  // for kinetic drops
 }
 
 export function makePiece(
@@ -36,120 +33,303 @@ export function makePiece(
     th,
     x: tx,
     y: ty,
-    w: tw,
-    h: th,
-    vx: 0,
-    vy: 0,
     ox: tx,
     oy: ty,
     f: 0,
+    dur: 0.36 + Math.random() * 0.16,
     lineTop,
     color,
+    owner: -1,
     state: 'waiting',
-    bounce: 0,
   };
 }
 
-export interface TextRun {
-  text: string;
-  left: number;
-  top: number;
-  width: number;
-  height: number;
+const isTransparent = (c: string | null | undefined) =>
+  !c || c === 'none' || c === 'transparent' || c === 'rgba(0, 0, 0, 0)' || c.startsWith('url(');
+
+/* ------------------------------------------------------------------ */
+/* Text: rasterize every glyph exactly where the browser laid it out   */
+/* ------------------------------------------------------------------ */
+
+let scratchCtx: CanvasRenderingContext2D | null = null;
+
+function getScratch(w: number, h: number): CanvasRenderingContext2D | null {
+  if (!scratchCtx) {
+    const c = document.createElement('canvas');
+    scratchCtx = c.getContext('2d', { willReadFrequently: true });
+  }
+  const ctx = scratchCtx;
+  if (!ctx) return null;
+  if (ctx.canvas.width < w || ctx.canvas.height < h) {
+    ctx.canvas.width = Math.max(ctx.canvas.width, w);
+    ctx.canvas.height = Math.max(ctx.canvas.height, h);
+  }
+  return ctx;
 }
 
-/**
- * Extracts all text runs and their exact screen bounding boxes from a DOM element
- */
-export function getTextRuns(element: HTMLElement, containerRect: DOMRect): TextRun[] {
-  const runs: TextRun[] = [];
+const COVERAGE_THRESHOLD = 0.35;
+
+function rasterizeGlyph(
+  ch: string,
+  font: string,
+  fontSize: number,
+  cell: number,
+  left: number,
+  top: number,
+  rectW: number,
+  rectH: number,
+  color: string,
+  out: PixelPiece[]
+) {
+  const probe = getScratch(1, 1);
+  if (!probe) return;
+  probe.font = font;
+  const m = probe.measureText(ch);
+  const asc = m.fontBoundingBoxAscent || fontSize * 0.8;
+  const desc = m.fontBoundingBoxDescent || fontSize * 0.2;
+  // The DOM rect is the font's content box, centred in the line box -> exact baseline.
+  const baseline = top + (rectH - (asc + desc)) / 2 + asc;
+  const glyphW = Math.max(rectW, m.actualBoundingBoxRight || 0);
+
+  // Snap to a container-wide grid so neighbouring glyphs share the same pixel lattice.
+  const gx0 = Math.floor(left / cell) * cell;
+  const gy0 = Math.floor(top / cell) * cell;
+  const cols = Math.ceil((left + glyphW - gx0) / cell) + 1;
+  const rows = Math.ceil((top + rectH - gy0) / cell) + 1;
+  const W = cols * cell;
+  const H = rows * cell;
+
+  const ctx = getScratch(W, H);
+  if (!ctx) return;
+  ctx.clearRect(0, 0, W, H);
+  ctx.font = font;
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = '#fff';
+  ctx.fillText(ch, left - gx0, baseline - gy0);
+  const data = ctx.getImageData(0, 0, W, H).data;
+
+  const full = cell * cell * 255;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      let sum = 0;
+      for (let y = r * cell; y < (r + 1) * cell; y++) {
+        let idx = (y * W + c * cell) * 4 + 3;
+        for (let x = 0; x < cell; x++, idx += 4) sum += data[idx];
+      }
+      if (sum / full >= COVERAGE_THRESHOLD) {
+        out.push(makePiece(gx0 + c * cell, gy0 + r * cell, cell, cell, color, top));
+      }
+    }
+  }
+}
+
+function textPieces(element: HTMLElement, containerRect: DOMRect): PixelPiece[] {
+  const pieces: PixelPiece[] = [];
   const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
   const range = document.createRange();
 
-  let node = walker.nextNode();
-  while (node) {
-    if (node.parentElement?.closest('[data-no-build]')) {
-      node = walker.nextNode();
-      continue;
-    }
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    const parent = node.parentElement;
+    if (!parent || parent.closest('[data-no-build]')) continue;
+
+    // Style per text node, so coloured / resized spans come out right.
+    const cs = getComputedStyle(parent);
+    if (cs.visibility === 'hidden' || cs.display === 'none') continue;
+    const fontSize = parseFloat(cs.fontSize) || 14;
+    const font = `${cs.fontStyle} ${cs.fontWeight} ${fontSize}px ${cs.fontFamily}`;
+    const cell = Math.max(2, Math.min(4, Math.round(fontSize / 5.5)));
 
     const text = node.textContent ?? '';
     for (let i = 0; i < text.length; i++) {
-      if (text[i].trim() === '') continue;
+      const code = text.charCodeAt(i);
+      const len = code >= 0xd800 && code <= 0xdbff ? 2 : 1;
+      let ch = text.slice(i, i + len);
+      const start = i;
+      i += len - 1;
+      if (ch.trim() === '') continue;
 
-      range.setStart(node, i);
-      range.setEnd(node, i + 1);
-      const rects = range.getClientRects();
-      if (!rects || rects.length === 0) continue;
+      range.setStart(node, start);
+      range.setEnd(node, start + len);
+      const r = range.getClientRects()[0];
+      if (!r || r.width === 0) continue;
 
-      const r = rects[0];
-      const relTop = Math.round(r.top - containerRect.top);
-      const relLeft = Math.round(r.left - containerRect.left);
+      if (cs.textTransform === 'uppercase') ch = ch.toUpperCase();
+      else if (cs.textTransform === 'lowercase') ch = ch.toLowerCase();
 
-      const last = runs[runs.length - 1];
-      if (last && Math.abs(last.top - relTop) < 3 && Math.abs((last.left + last.width) - relLeft) < 14) {
-        last.text += text[i];
-        last.width = (relLeft + r.width) - last.left;
-      } else {
-        runs.push({
-          text: text[i],
-          left: relLeft,
-          top: relTop,
-          width: r.width,
-          height: r.height,
-        });
-      }
+      rasterizeGlyph(
+        ch,
+        font,
+        fontSize,
+        cell,
+        r.left - containerRect.left,
+        r.top - containerRect.top,
+        r.width,
+        r.height,
+        cs.color,
+        pieces
+      );
     }
-    node = walker.nextNode();
   }
 
-  return runs;
+  // "Handwriting" order: line by line, glyph columns left -> right, top -> bottom.
+  pieces.sort(
+    (a, b) => Math.round(a.lineTop / 4) - Math.round(b.lineTop / 4) || a.tx - b.tx || a.ty - b.ty
+  );
+  return pieces;
 }
 
-/**
- * Rasterizes a string into an array of pixel offset points using an offscreen canvas
- */
-export function rasterizeText(
-  text: string,
-  fontFamily: string,
-  fontSize: number,
-  fontWeight: string,
-  cellSize: number
-): { x: number; y: number }[] {
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  if (!ctx) return [];
+/* ------------------------------------------------------------------ */
+/* SVG pixel art: paint rects onto a unit grid (later rects win)       */
+/* ------------------------------------------------------------------ */
 
-  ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
-  ctx.textBaseline = 'alphabetic';
-  const metrics = ctx.measureText(text);
-  const ascent = Math.ceil(metrics.fontBoundingBoxAscent || fontSize * 0.85);
-  const descent = Math.ceil(metrics.fontBoundingBoxDescent || fontSize * 0.25);
+function svgPieces(svg: SVGSVGElement, containerRect: DOMRect): PixelPiece[] {
+  const sr = svg.getBoundingClientRect();
+  if (sr.width === 0 || sr.height === 0) return [];
+  const vb = svg.viewBox?.baseVal;
+  const vw = vb && vb.width ? vb.width : sr.width;
+  const vh = vb && vb.height ? vb.height : sr.height;
+  const vx0 = vb?.x || 0;
+  const vy0 = vb?.y || 0;
 
-  canvas.width = Math.max(1, Math.ceil(metrics.width) + 4);
-  canvas.height = Math.max(1, ascent + descent + 4);
+  // Default preserveAspectRatio = xMidYMid meet
+  const s = Math.min(sr.width / vw, sr.height / vh);
+  const ox = sr.left - containerRect.left + (sr.width - vw * s) / 2;
+  const oy = sr.top - containerRect.top + (sr.height - vh * s) / 2;
 
-  ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
-  ctx.textBaseline = 'alphabetic';
-  ctx.fillStyle = '#ffffff';
-  ctx.fillText(text, 0, ascent);
+  const cols = Math.ceil(vw);
+  const grid = new Map<number, string>();
 
-  const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const data = imgData.data;
-  const pixels: { x: number; y: number }[] = [];
+  svg.querySelectorAll('rect').forEach((r) => {
+    let fill = r.getAttribute('fill');
+    if (!fill || fill === 'currentColor') fill = getComputedStyle(r).fill;
+    if (isTransparent(fill)) return;
+    const x = (parseFloat(r.getAttribute('x') || '0') || 0) - vx0;
+    const y = (parseFloat(r.getAttribute('y') || '0') || 0) - vy0;
+    const w = parseFloat(r.getAttribute('width') || '0') || 0;
+    const h = parseFloat(r.getAttribute('height') || '0') || 0;
+    for (let uy = Math.floor(y); uy < Math.ceil(y + h); uy++) {
+      for (let ux = Math.floor(x); ux < Math.ceil(x + w); ux++) {
+        if (ux >= 0 && uy >= 0 && ux < cols) grid.set(uy * cols + ux, fill!);
+      }
+    }
+  });
 
-  const step = Math.max(2, Math.round(cellSize));
+  const pieces: PixelPiece[] = [];
+  grid.forEach((color, key) => {
+    const ux = key % cols;
+    const uy = Math.floor(key / cols);
+    // Rounded edges from neighbouring cells -> no seams between pixels.
+    const px = Math.round(ox + ux * s);
+    const py = Math.round(oy + uy * s);
+    const pw = Math.round(ox + (ux + 1) * s) - px;
+    const ph = Math.round(oy + (uy + 1) * s) - py;
+    pieces.push(makePiece(px, py, pw, ph, color, py));
+  });
+  return pieces;
+}
 
-  for (let y = 0; y < canvas.height; y += step) {
-    for (let x = 0; x < canvas.width; x += step) {
-      const idx = (y * canvas.width + x) * 4;
-      if (data[idx + 3] > 100) {
-        pixels.push({ x, y: y - ascent });
+/* ------------------------------------------------------------------ */
+/* Boxes & rings: real border widths, colours and radius               */
+/* ------------------------------------------------------------------ */
+
+function boxPieces(element: Element, containerRect: DOMRect, borderOnly: boolean): PixelPiece[] {
+  const cs = getComputedStyle(element);
+  const rect = element.getBoundingClientRect();
+  const L = rect.left - containerRect.left;
+  const T = rect.top - containerRect.top;
+  const W = rect.width;
+  const H = rect.height;
+  if (W === 0 || H === 0) return [];
+
+  const bt = parseFloat(cs.borderTopWidth) || 0;
+  const br = parseFloat(cs.borderRightWidth) || 0;
+  const bb = parseFloat(cs.borderBottomWidth) || 0;
+  const bl = parseFloat(cs.borderLeftWidth) || 0;
+  const radius = Math.min(parseFloat(cs.borderTopLeftRadius) || 0, W / 2, H / 2);
+
+  let fill: string | null = null;
+  if (!borderOnly) {
+    if (!isTransparent(cs.backgroundColor)) fill = cs.backgroundColor;
+    else if (cs.backgroundImage !== 'none') fill = '#090d1a';
+  }
+
+  // Fully round element -> pixel circle
+  if (radius >= Math.min(W, H) / 2 - 1 && Math.min(W, H) > 8) {
+    return circlePieces(L, T, W, H, Math.max(bt, 2), cs.borderTopColor, fill);
+  }
+
+  const SEG = 8;
+  const pieces: PixelPiece[] = [];
+  const insideRounded = (x: number, y: number) => {
+    if (radius < 3) return true;
+    const cx = Math.min(Math.max(x, radius), W - radius);
+    const cy = Math.min(Math.max(y, radius), H - radius);
+    return Math.hypot(x - cx, y - cy) <= radius;
+  };
+  const span = (from: number, to: number) => {
+    const out: [number, number][] = [];
+    for (let p = from; p < to - 0.5; p += SEG) out.push([p, Math.min(SEG, to - p)]);
+    return out;
+  };
+
+  // Outline first, traced clockwise from the top-left corner.
+  if (bt > 0)
+    for (const [x, w] of span(0, W))
+      if (insideRounded(x + w / 2, bt / 2)) pieces.push(makePiece(L + x, T, w, bt, cs.borderTopColor, T));
+  if (br > 0)
+    for (const [y, h] of span(bt, H - bb))
+      if (insideRounded(W - br / 2, y + h / 2))
+        pieces.push(makePiece(L + W - br, T + y, br, h, cs.borderRightColor, T));
+  if (bb > 0)
+    for (const [x, w] of span(0, W).reverse())
+      if (insideRounded(x + w / 2, H - bb / 2))
+        pieces.push(makePiece(L + x, T + H - bb, w, bb, cs.borderBottomColor, T));
+  if (bl > 0)
+    for (const [y, h] of span(bt, H - bb).reverse())
+      if (insideRounded(bl / 2, y + h / 2)) pieces.push(makePiece(L, T + y, bl, h, cs.borderLeftColor, T));
+
+  // Then fill the inside, top -> bottom.
+  if (fill) {
+    for (const [y, h] of span(bt, H - bb))
+      for (const [x, w] of span(bl, W - br))
+        if (insideRounded(x + w / 2, y + h / 2)) pieces.push(makePiece(L + x, T + y, w, h, fill, T));
+  }
+  return pieces;
+}
+
+function circlePieces(
+  L: number,
+  T: number,
+  W: number,
+  H: number,
+  bw: number,
+  border: string,
+  fill: string | null
+): PixelPiece[] {
+  const cell = Math.max(2, Math.min(4, Math.round(bw)));
+  const cx = W / 2;
+  const cy = H / 2;
+  const R = Math.min(W, H) / 2;
+  const ring: { p: PixelPiece; a: number }[] = [];
+  const inner: { p: PixelPiece; d: number }[] = [];
+
+  for (let y = 0; y < H; y += cell) {
+    for (let x = 0; x < W; x += cell) {
+      const d = Math.hypot(x + cell / 2 - cx, y + cell / 2 - cy);
+      if (d > R) continue;
+      if (d >= R - bw) {
+        ring.push({
+          p: makePiece(L + x, T + y, cell, cell, border, T),
+          a: (Math.atan2(y - cy, x - cx) + Math.PI * 2.5) % (Math.PI * 2),
+        });
+      } else if (fill) {
+        inner.push({ p: makePiece(L + x, T + y, cell, cell, fill, T), d });
       }
     }
   }
-
-  return pixels;
+  ring.sort((a, b) => a.a - b.a);
+  inner.sort((a, b) => b.d - a.d);
+  return [...ring.map((r) => r.p), ...inner.map((r) => r.p)];
 }
 
 /**
@@ -158,169 +338,24 @@ export function rasterizeText(
 export function piecesOf(
   element: HTMLElement,
   containerRect: DOMRect,
-  type: 'pixel-art' | 'text' | 'box' | 'ring' = 'text',
-  defaultColor = '#ffffff'
+  type: 'pixel-art' | 'text' | 'box' | 'ring' = 'text'
 ): PixelPiece[] {
-  const style = getComputedStyle(element);
-  const elemRect = element.getBoundingClientRect();
-  const pieces: PixelPiece[] = [];
-
-  // 1. Pixel Art / SVG Extraction (Extract exact pixel rects from SVG)
-  if (type === 'pixel-art' || element.querySelector('svg')) {
+  if (type === 'pixel-art') {
     const svgs = Array.from(element.querySelectorAll('svg'));
-    if (element.tagName.toLowerCase() === 'svg') {
-      svgs.push(element as unknown as SVGSVGElement);
-    }
+    if (element instanceof SVGSVGElement) svgs.push(element);
+    const pieces = svgs.flatMap((svg) => svgPieces(svg, containerRect));
 
-    for (const svg of svgs) {
-      const rects = Array.from(svg.querySelectorAll('rect'));
-      for (const r of rects) {
-        const fill = r.getAttribute('fill');
-        if (!fill || fill === 'none' || fill === 'transparent') continue;
+    // Built from the ground up, centre outwards.
+    const cx = pieces.reduce((s, p) => s + p.tx, 0) / Math.max(1, pieces.length);
+    pieces.sort((a, b) => b.ty - a.ty || Math.abs(a.tx - cx) - Math.abs(b.tx - cx));
 
-        const rRect = r.getBoundingClientRect();
-        if (rRect.width === 0 || rRect.height === 0) continue;
-
-        const left = Math.round(rRect.left - containerRect.left);
-        const top = Math.round(rRect.top - containerRect.top);
-
-        pieces.push(
-          makePiece(
-            left,
-            top,
-            Math.max(2, Math.round(rRect.width)),
-            Math.max(2, Math.round(rRect.height)),
-            fill,
-            top
-          )
-        );
-      }
-    }
-
-    // Also include any perch or support block underneath
+    // Perch / support block underneath goes in first.
     const perch = element.querySelector('.shadow-pixel');
-    if (perch) {
-      const pRect = perch.getBoundingClientRect();
-      const pLeft = Math.round(pRect.left - containerRect.left);
-      const pTop = Math.round(pRect.top - containerRect.top);
-      const pW = Math.round(pRect.width);
-      const pH = Math.round(pRect.height);
-      const step = 8;
-      const cols = Math.max(1, Math.round(pW / step));
-      const rows = Math.max(1, Math.round(pH / step));
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-          pieces.push(
-            makePiece(
-              pLeft + c * step,
-              pTop + r * step,
-              step - 1,
-              step - 1,
-              r === 0 || r === rows - 1 || c === 0 || c === cols - 1 ? '#475569' : '#1e293b',
-              pTop
-            )
-          );
-        }
-      }
-    }
-
-    if (pieces.length > 0) {
-      pieces.sort((a, b) => a.lineTop - b.lineTop || a.tx - b.tx);
-      return pieces;
-    }
+    return perch ? [...boxPieces(perch, containerRect, false), ...pieces] : pieces;
   }
 
-  // 2. Text Extraction
-  if (type === 'text') {
-    const fontSize = parseFloat(style.fontSize) || 14;
-    const fontFamily = style.fontFamily || 'monospace';
-    const fontWeight = style.fontWeight || '400';
-    const color = style.color || defaultColor;
-    const cellSize = Math.max(2, Math.min(4, Math.round(fontSize / 5.5)));
-
-    const runs = getTextRuns(element, containerRect);
-
-    for (const run of runs) {
-      const charPixels = rasterizeText(run.text, fontFamily, fontSize, fontWeight, cellSize);
-      for (const p of charPixels) {
-        pieces.push(
-          makePiece(
-            run.left + p.x,
-            run.top + p.y + fontSize * 0.8,
-            cellSize,
-            cellSize,
-            color,
-            run.top
-          )
-        );
-      }
-    }
-  } else if (type === 'box') {
-    const boxLeft = Math.round(elemRect.left - containerRect.left);
-    const boxTop = Math.round(elemRect.top - containerRect.top);
-    const boxWidth = Math.round(elemRect.width);
-    const boxHeight = Math.round(elemRect.height);
-
-    const step = 8;
-    const cols = Math.max(2, Math.round(boxWidth / step));
-    const rows = Math.max(2, Math.round(boxHeight / step));
-    const stepW = boxWidth / cols;
-    const stepH = boxHeight / rows;
-
-    const bg = style.backgroundColor !== 'rgba(0, 0, 0, 0)' && style.backgroundColor !== 'transparent'
-      ? style.backgroundColor
-      : '#090d1a';
-    const border = style.borderColor || '#38bdf8';
-
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        const isBorder = r === 0 || r === rows - 1 || c === 0 || c === cols - 1;
-        const color = isBorder ? border : bg;
-        pieces.push(
-          makePiece(
-            Math.round(boxLeft + c * stepW),
-            Math.round(boxTop + r * stepH),
-            Math.max(2, Math.round(stepW - 1)),
-            Math.max(2, Math.round(stepH - 1)),
-            color,
-            boxTop
-          )
-        );
-      }
-    }
-  } else if (type === 'ring') {
-    const boxLeft = Math.round(elemRect.left - containerRect.left);
-    const boxTop = Math.round(elemRect.top - containerRect.top);
-    const boxWidth = Math.round(elemRect.width);
-    const boxHeight = Math.round(elemRect.height);
-
-    const step = 6;
-    const cols = Math.max(2, Math.round(boxWidth / step));
-    const rows = Math.max(2, Math.round(boxHeight / step));
-    const stepW = boxWidth / cols;
-    const stepH = boxHeight / rows;
-    const border = style.borderColor || defaultColor;
-
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        if (r === 0 || r === rows - 1 || c === 0 || c === cols - 1) {
-          pieces.push(
-            makePiece(
-              Math.round(boxLeft + c * stepW),
-              Math.round(boxTop + r * stepH),
-              Math.max(2, Math.round(stepW - 1)),
-              Math.max(2, Math.round(stepH - 1)),
-              border,
-              boxTop
-            )
-          );
-        }
-      }
-    }
-  }
-
-  pieces.sort((a, b) => a.lineTop - b.lineTop || a.tx - b.tx || a.ty - b.ty);
-  return pieces;
+  if (type === 'text') return textPieces(element, containerRect);
+  return boxPieces(element, containerRect, type === 'ring');
 }
 
 export type BuildStyle = 'kinetic' | 'scan' | 'drop' | 'flank';
@@ -351,11 +386,14 @@ export interface SpiderBotAgent {
   floatFreq: number;
   floatAmp: number;
   stuntAngle: number;
-  stuntTimer: number;
   emote: string | null;
   emoteTimer: number;
   sonarRadius: number;
   sonarTimer: number;
+
+  cursor: number; // next piece index to launch
+  rate: number;   // pieces launched per second
+  landed: number; // pieces that reached home
 }
 
 export const BOT_SHADES = [
