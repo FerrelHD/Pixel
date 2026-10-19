@@ -1,7 +1,6 @@
 import React, { useRef } from 'react';
 import { Zap, Code, Gamepad2, Server, Palette } from 'lucide-react';
 import { soundSynth } from '../../audio/soundEffects';
-import { SectionPixelBuilder } from '../builder/SectionPixelBuilder';
 
 interface SkillsSectionProps {
   isMuted?: boolean;
@@ -76,14 +75,9 @@ export const SkillsSection: React.FC<SkillsSectionProps> = ({ isMuted = false })
       className="relative w-full py-16 sm:py-24 px-4 sm:px-6 bg-midnight-950 border-t-4 border-midnight-700 select-none scroll-mt-14"
       aria-label="Skill Tree"
     >
-      {/* Scroll Pixel Builder Overlay */}
-      <SectionPixelBuilder containerRef={sectionRef} isMuted={isMuted} />
-
       <div className="max-w-5xl mx-auto">
         {/* Section Header */}
         <div
-          data-build="text"
-          data-crew="skills-hdr"
           className="flex items-center gap-3 mb-8 pb-3 border-b-2 border-midnight-700"
         >
           <Zap className="text-emerald-400" size={24} />
@@ -102,8 +96,6 @@ export const SkillsSection: React.FC<SkillsSectionProps> = ({ isMuted = false })
           {SKILL_CLUSTERS.map((cluster) => (
             <div
               key={cluster.title}
-              data-build="box"
-              data-crew="skills-cards"
               className={`bg-midnight-900 border-4 ${cluster.accent} p-5 shadow-pixel relative group`}
             >
               <div className="flex items-center justify-between pb-3 border-b border-midnight-700 mb-4">

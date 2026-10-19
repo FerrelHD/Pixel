@@ -33,7 +33,11 @@ export const RpgDialogueBox: React.FC<RpgDialogueBoxProps> = () => {
           data-crew="dialogue-badge"
           className="absolute -top-4 left-6 sm:left-8 bg-spidey-crimson border-2 border-white px-3 py-0.5 shadow-pixel-sm"
         >
-          <span className="font-pixel text-[9px] sm:text-[10px] text-white font-bold tracking-wider">
+          <span
+            data-build="text"
+            data-crew="dialogue-badge"
+            className="font-pixel text-[9px] sm:text-[10px] text-white font-bold tracking-wider"
+          >
             ★ SPIDEY TRANSMISSION ★
           </span>
         </div>

@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { drawSpiderBot, SpiderBotAgent, BuildStyle } from '../../utils/pixelEngine';
+import { drawSpiderBot, SpiderBotAgent } from '../../utils/pixelEngine';
 import { soundSynth } from '../../audio/soundEffects';
 import {
+  BOT_CONFIGS,
   buildRate,
   createJobs,
   drawPieces,
@@ -90,7 +91,10 @@ export const HeroPixelBuilder: React.FC<HeroPixelBuilderProps> = ({
       if (completed) return;
       finishAll(jobs, agents, idleMode);
       // Elements may not be measured yet (fonts loading) -> reveal them anyway.
-      container.querySelectorAll<HTMLElement>('[data-build]').forEach((el) => el.setAttribute('data-solid', 'true'));
+      container.querySelectorAll<HTMLElement>('[data-build]').forEach((el) => {
+        el.setAttribute('data-solid', 'true');
+        el.removeAttribute('inert');
+      });
       complete();
     };
     skipRef.current = handleSkip;
@@ -137,9 +141,10 @@ export const HeroPixelBuilder: React.FC<HeroPixelBuilderProps> = ({
         finishAll(jobs, agents, idleMode);
         complete();
         const containerRect = sizeCanvas();
-        const groups = Array.from(new Set(jobs.map((j) => j.group)));
         agents.forEach((a, idx) => {
-          const t = idleTarget(jobs.filter((j) => j.group === groups[idx]), idx, containerRect);
+          const cfg = BOT_CONFIGS[idx];
+          const assignedJobs = jobs.filter((j) => cfg?.targetGroups.includes(j.group));
+          const t = idleTarget(assignedJobs, idx, containerRect);
           a.idleTargetX = t.x;
           a.idleTargetY = t.y;
         });
@@ -164,44 +169,13 @@ export const HeroPixelBuilder: React.FC<HeroPixelBuilderProps> = ({
 
       jobs = createJobs(container, containerRect, isAlreadySolid);
 
-      // Define 3 specialized Spider-Bots (Weaver, Typist, Armorer)
-      const botConfigs = [
-        {
-          id: 0,
-          name: 'The Weaver',
-          primary: '#00f0ff',
-          eye: '#38bdf8',
-          style: 'kinetic' as BuildStyle,
-          delay: 0.0,
-          targetGroups: ['dialogue-frame', 'box', 'hud', 'frame'],
-        },
-        {
-          id: 1,
-          name: 'The Typist',
-          primary: '#facc15',
-          eye: '#ffffff',
-          style: 'scan' as BuildStyle,
-          delay: 0.6,
-          targetGroups: ['dialogue-text', 'text', 'name', 'lore'],
-        },
-        {
-          id: 2,
-          name: 'The Armorer',
-          primary: '#e11d48',
-          eye: '#fb7185',
-          style: 'drop' as BuildStyle,
-          delay: 0.8,
-          targetGroups: ['dialogue-badge', 'actions', 'cta', 'spidey-perch', 'pixel-art', 'default'],
-        },
-      ];
-
-      // Spawn exactly the 3 specialized Spider-Bot Agents
-      agents = botConfigs.map((cfg, idx) => {
+      // Spawn exactly the 3 specialized Spider-Bot Agents from shared BOT_CONFIGS
+      agents = BOT_CONFIGS.map((cfg, idx) => {
         const assignedJobs = jobs.filter((j) => {
           if (cfg.targetGroups.includes(j.group)) return true;
           // Fallback to bot 2 (Armorer) for anything unassigned
           if (idx === 2) {
-            return !botConfigs[0].targetGroups.includes(j.group) && !botConfigs[1].targetGroups.includes(j.group);
+            return !BOT_CONFIGS[0].targetGroups.includes(j.group) && !BOT_CONFIGS[1].targetGroups.includes(j.group);
           }
           return false;
         });

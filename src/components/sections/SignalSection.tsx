@@ -1,7 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Radio, Mail, Github, MessageSquare, Check, ArrowUp } from 'lucide-react';
 import { soundSynth } from '../../audio/soundEffects';
-import { SectionPixelBuilder } from '../builder/SectionPixelBuilder';
 
 interface SignalSectionProps {
   isMuted?: boolean;
@@ -43,14 +42,9 @@ export const SignalSection: React.FC<SignalSectionProps> = ({ isMuted = false })
       className="relative w-full py-16 sm:py-24 px-4 sm:px-6 bg-midnight-950 border-t-4 border-midnight-700 select-none scroll-mt-14"
       aria-label="Contact Signal"
     >
-      {/* Scroll Pixel Builder Overlay */}
-      <SectionPixelBuilder containerRef={sectionRef} isMuted={isMuted} />
-
       <div className="max-w-4xl mx-auto">
         {/* Section Header */}
         <div
-          data-build="text"
-          data-crew="signal-hdr"
           className="flex items-center gap-3 mb-8 pb-3 border-b-2 border-midnight-700"
         >
           <Radio className="text-spidey-crimson animate-pulse" size={24} />
@@ -66,8 +60,6 @@ export const SignalSection: React.FC<SignalSectionProps> = ({ isMuted = false })
 
         {/* Contact Console Box */}
         <div
-          data-build="box"
-          data-crew="signal-card"
           className="bg-midnight-900 border-4 border-spidey-crimson p-6 sm:p-8 shadow-pixel relative"
         >
           <div className="absolute -top-1.5 -left-1.5 w-3 h-3 bg-white" />

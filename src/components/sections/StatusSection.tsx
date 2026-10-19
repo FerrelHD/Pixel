@@ -1,7 +1,6 @@
 import React, { useRef } from 'react';
 import { Award, Shield, Backpack, Zap } from 'lucide-react';
 import { soundSynth } from '../../audio/soundEffects';
-import { SectionPixelBuilder } from '../builder/SectionPixelBuilder';
 
 interface StatusSectionProps {
   isMuted?: boolean;
@@ -17,14 +16,9 @@ export const StatusSection: React.FC<StatusSectionProps> = ({ isMuted = false })
       className="relative w-full py-16 sm:py-24 px-4 sm:px-6 bg-midnight-950 border-t-4 border-midnight-700 select-none scroll-mt-14"
       aria-label="Character Status"
     >
-      {/* Scroll Pixel Builder Overlay */}
-      <SectionPixelBuilder containerRef={sectionRef} isMuted={isMuted} />
-
       <div className="max-w-5xl mx-auto">
         {/* Section Header */}
         <div
-          data-build="text"
-          data-crew="status-hdr"
           className="flex items-center gap-3 mb-8 pb-3 border-b-2 border-midnight-700"
         >
           <Award className="text-arcade-gold" size={24} />
@@ -40,8 +34,6 @@ export const StatusSection: React.FC<StatusSectionProps> = ({ isMuted = false })
 
         {/* 16-Bit Character Profile Box */}
         <div
-          data-build="box"
-          data-crew="status-card"
           className="bg-midnight-900 border-4 border-slate-300 p-5 sm:p-8 shadow-pixel relative"
         >
           <div className="absolute -top-1.5 -left-1.5 w-3 h-3 bg-arcade-gold" />

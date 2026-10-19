@@ -7,7 +7,6 @@ import {
   X,
 } from 'lucide-react';
 import { soundSynth } from '../../audio/soundEffects';
-import { SectionPixelBuilder } from '../builder/SectionPixelBuilder';
 import { REAL_PROJECTS } from '../../data/projects';
 import { ProjectQuest } from '../../types';
 
@@ -48,14 +47,9 @@ export const MissionsSection: React.FC<MissionsSectionProps> = ({ isMuted = fals
       className="relative w-full py-16 sm:py-24 px-4 sm:px-6 bg-midnight-950 border-t-4 border-midnight-700 select-none scroll-mt-14"
       aria-label="Active Missions"
     >
-      {/* Scroll Pixel Builder Overlay */}
-      <SectionPixelBuilder containerRef={sectionRef} isMuted={isMuted} />
-
       <div className="max-w-6xl mx-auto">
         {/* Section Header */}
         <div
-          data-build="text"
-          data-crew="missions-hdr"
           className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 pb-3 border-b-2 border-midnight-700"
         >
           <div className="flex items-center gap-3">
@@ -116,8 +110,6 @@ export const MissionsSection: React.FC<MissionsSectionProps> = ({ isMuted = fals
             return (
               <article
                 key={project.id}
-                data-build="box"
-                data-crew="missions-cards"
                 onMouseEnter={() => {
                   setHoveredCardId(project.id);
                   soundSynth.playButtonHover(isMuted);

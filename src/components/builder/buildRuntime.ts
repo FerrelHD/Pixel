@@ -1,5 +1,4 @@
-// Shared simulation for the in-situ pixel builders (hero + sections).
-import { piecesOf, PixelPiece, SpiderBotAgent } from '../../utils/pixelEngine';
+import { piecesOf, PixelPiece, SpiderBotAgent, BuildStyle } from '../../utils/pixelEngine';
 
 /** Pieces stay fully opaque while the DOM fades in underneath, then drop out. */
 export const HOLD_TIME = 0.12;
@@ -11,24 +10,52 @@ const AIM_WINDOW = 48;      // bot aims at the centre of the last N launched pie
 
 export const buildRate = (total: number) => Math.max(MIN_RATE, total / MAX_BUILD_TIME);
 
-export const BOT_START_DELAYS: Record<number, number> = {
-  0: 0.0, // Weaver starts immediately with outer frame
-  1: 0.6, // Typist starts at 0.6s with text
-  2: 0.8, // Armorer starts at 0.8s with badges & buttons
-};
+export interface BotConfig {
+  id: number;
+  name: string;
+  primary: string;
+  eye: string;
+  style: BuildStyle;
+  delay: number;
+  targetGroups: string[];
+}
 
-export const BOT_GROUPS: Record<number, string[]> = {
-  0: ['dialogue-frame', 'box', 'hud', 'frame'],
-  1: ['dialogue-text', 'text', 'name', 'lore'],
-  2: ['dialogue-badge', 'actions', 'cta', 'buttons', 'spidey-perch', 'pixel-art', 'default'],
-};
+export const BOT_CONFIGS: BotConfig[] = [
+  {
+    id: 0,
+    name: 'The Weaver',
+    primary: '#00f0ff',
+    eye: '#38bdf8',
+    style: 'kinetic',
+    delay: 0.0,
+    targetGroups: ['dialogue-frame', 'box', 'hud', 'frame'],
+  },
+  {
+    id: 1,
+    name: 'The Typist',
+    primary: '#facc15',
+    eye: '#ffffff',
+    style: 'scan',
+    delay: 0.6,
+    targetGroups: ['dialogue-text', 'text', 'name', 'lore'],
+  },
+  {
+    id: 2,
+    name: 'The Armorer',
+    primary: '#e11d48',
+    eye: '#fb7185',
+    style: 'drop',
+    delay: 0.8,
+    targetGroups: ['dialogue-badge', 'actions', 'cta', 'buttons', 'spidey-perch', 'pixel-art', 'default'],
+  },
+];
 
 export function getBotAssignedGroup(botId: number): string[] {
-  return BOT_GROUPS[botId] || ['default'];
+  return BOT_CONFIGS[botId]?.targetGroups || ['default'];
 }
 
 export function isBotActiveAtTime(botId: number, elapsed: number): boolean {
-  const delay = BOT_START_DELAYS[botId] ?? 0;
+  const delay = BOT_CONFIGS[botId]?.delay ?? 0;
   return elapsed >= delay;
 }
 
@@ -47,6 +74,7 @@ type BuildType = 'pixel-art' | 'text' | 'box' | 'ring';
 export function createJobs(container: HTMLElement, containerRect: DOMRect, alreadySolid: boolean): ElementJob[] {
   const els = Array.from(container.querySelectorAll<HTMLElement>('[data-build]'));
   const jobs: ElementJob[] = els.map((el, i) => {
+    if (!alreadySolid) el.setAttribute('inert', '');
     const pieces = alreadySolid ? [] : piecesOf(el, containerRect, (el.dataset.build as BuildType) || 'text');
     pieces.forEach((p) => (p.owner = i));
     return {
@@ -76,6 +104,7 @@ function settle(jobs: ElementJob[], i: number) {
   if (job.parent >= 0 && !jobs[job.parent].isSolid) return;
   job.isSolid = true;
   job.el.setAttribute('data-solid', 'true');
+  job.el.removeAttribute('inert');
   job.pieces.forEach((p) => {
     p.state = 'fading';
     p.f = 0;
@@ -95,6 +124,7 @@ export function finishAll(jobs: ElementJob[], agents: SpiderBotAgent[], idleMode
     job.ready = job.isSolid = true;
     job.remaining = 0;
     job.el.setAttribute('data-solid', 'true');
+    job.el.removeAttribute('inert');
     job.pieces.forEach((p) => (p.state = 'gone'));
   });
   agents.forEach((a) => {
@@ -184,7 +214,7 @@ export function stepBuilding(a: SpiderBotAgent, dt: number, now: number, onLaunc
 }
 
 export function stepIdle(a: SpiderBotAgent, dt: number, now: number, mouse: { x: number; y: number }) {
-  const hoverBob = Math.sin((now / 1000) * a.floatFreq) * a.floatAmp;
+  const hoverBob = a.mode === 'perched' ? 0 : Math.sin((now / 1000) * a.floatFreq) * a.floatAmp;
   let tx = a.idleTargetX;
   let ty = a.idleTargetY + hoverBob;
 
@@ -198,7 +228,6 @@ export function stepIdle(a: SpiderBotAgent, dt: number, now: number, mouse: { x:
       ty -= (dy / dist) * 16;
     }
   }
-  if (a.id === 3 && a.mode === 'floating') tx += Math.sin(now / 1600) * 80;
 
   spring(a, tx, ty, 45, 13.5, dt);
 }
