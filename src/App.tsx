@@ -11,6 +11,7 @@ export const App: React.FC = () => {
   const [isMuted, setIsMuted] = useState(false);
   const [isCrtOn, setIsCrtOn] = useState(true);
   const [spiderSenseTriggered, setSpiderSenseTriggered] = useState(false);
+  const [isIntroComplete, setIsIntroComplete] = useState(false);
 
   const handleToggleMute = () => {
     setIsMuted((prev) => !prev);
@@ -42,6 +43,7 @@ export const App: React.FC = () => {
         <HeroSection
           isMuted={isMuted}
           spiderSenseTriggered={spiderSenseTriggered}
+          onIntroComplete={() => setIsIntroComplete(true)}
         />
 
         {/* Section 2: Character Status (About) */}
@@ -57,8 +59,8 @@ export const App: React.FC = () => {
         <SignalSection isMuted={isMuted} />
       </main>
 
-      {/* 3. Interactive Airborne Flying Spider-Bot Companion */}
-      <FlyingSpiderBotCompanion isMuted={isMuted} />
+      {/* 3. Interactive Airborne Flying Spider-Bot Companion (active after intro) */}
+      {isIntroComplete && <FlyingSpiderBotCompanion isMuted={isMuted} />}
 
       {/* 4. CRT Scanlines & Monitor Vignette Filter */}
       {isCrtOn && <div className="crt-overlay crt-flicker" aria-hidden="true" />}

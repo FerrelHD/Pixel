@@ -20,7 +20,7 @@ export const BOT_START_DELAYS: Record<number, number> = {
 export const BOT_GROUPS: Record<number, string[]> = {
   0: ['dialogue-frame', 'box', 'hud', 'frame'],
   1: ['dialogue-text', 'text', 'name', 'lore'],
-  2: ['dialogue-badge', 'actions', 'cta', 'spidey-perch', 'pixel-art', 'default'],
+  2: ['dialogue-badge', 'actions', 'cta', 'buttons', 'spidey-perch', 'pixel-art', 'default'],
 };
 
 export function getBotAssignedGroup(botId: number): string[] {

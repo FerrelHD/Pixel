@@ -25,11 +25,13 @@ interface WebShot {
 interface HeroSectionProps {
   isMuted: boolean;
   spiderSenseTriggered?: boolean;
+  onIntroComplete?: () => void;
 }
 
 export const HeroSection: React.FC<HeroSectionProps> = ({
   isMuted,
   spiderSenseTriggered = false,
+  onIntroComplete,
 }) => {
   const heroRef = useRef<HTMLElement>(null);
   const spideyRef = useRef<HTMLDivElement>(null);
@@ -89,7 +91,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
       <SkylineBackground />
 
       {/* In-Situ Authentic Pixel Builder Overlay (Samuel Rizzon mechanics) */}
-      <HeroPixelBuilder containerRef={heroRef} isMuted={isMuted} />
+      <HeroPixelBuilder containerRef={heroRef} isMuted={isMuted} onComplete={onIntroComplete} />
 
       {/* Interactive Web Shooting Overlays */}
       <svg className="pointer-events-none absolute inset-0 w-full h-full z-15">
