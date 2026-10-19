@@ -11,6 +11,27 @@ const AIM_WINDOW = 48;      // bot aims at the centre of the last N launched pie
 
 export const buildRate = (total: number) => Math.max(MIN_RATE, total / MAX_BUILD_TIME);
 
+export const BOT_START_DELAYS: Record<number, number> = {
+  0: 0.0, // Weaver starts immediately with outer frame
+  1: 0.6, // Typist starts at 0.6s with text
+  2: 0.8, // Armorer starts at 0.8s with badges & buttons
+};
+
+export const BOT_GROUPS: Record<number, string[]> = {
+  0: ['dialogue-frame', 'box', 'hud', 'frame'],
+  1: ['dialogue-text', 'text', 'name', 'lore'],
+  2: ['dialogue-badge', 'actions', 'cta', 'spidey-perch', 'pixel-art', 'default'],
+};
+
+export function getBotAssignedGroup(botId: number): string[] {
+  return BOT_GROUPS[botId] || ['default'];
+}
+
+export function isBotActiveAtTime(botId: number, elapsed: number): boolean {
+  const delay = BOT_START_DELAYS[botId] ?? 0;
+  return elapsed >= delay;
+}
+
 export interface ElementJob {
   el: HTMLElement;
   group: string;
