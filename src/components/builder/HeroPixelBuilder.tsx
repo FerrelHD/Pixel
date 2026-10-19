@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { drawSpiderBot, SpiderBotAgent, BOT_SHADES, BuildStyle } from '../../utils/pixelEngine';
+import { drawSpiderBot, SpiderBotAgent, BuildStyle } from '../../utils/pixelEngine';
 import { soundSynth } from '../../audio/soundEffects';
 import {
   buildRate,
@@ -164,18 +164,52 @@ export const HeroPixelBuilder: React.FC<HeroPixelBuilderProps> = ({
 
       jobs = createJobs(container, containerRect, isAlreadySolid);
 
-      // Group elements by crew
-      const groups = Array.from(new Set(jobs.map((j) => j.group)));
-      const styleList: BuildStyle[] = ['kinetic', 'scan', 'drop', 'flank'];
+      // Define 3 specialized Spider-Bots (Weaver, Typist, Armorer)
+      const botConfigs = [
+        {
+          id: 0,
+          name: 'The Weaver',
+          primary: '#00f0ff',
+          eye: '#38bdf8',
+          style: 'kinetic' as BuildStyle,
+          delay: 0.0,
+          targetGroups: ['dialogue-frame', 'box', 'hud', 'frame'],
+        },
+        {
+          id: 1,
+          name: 'The Typist',
+          primary: '#facc15',
+          eye: '#ffffff',
+          style: 'scan' as BuildStyle,
+          delay: 0.6,
+          targetGroups: ['dialogue-text', 'text', 'name', 'lore'],
+        },
+        {
+          id: 2,
+          name: 'The Armorer',
+          primary: '#e11d48',
+          eye: '#fb7185',
+          style: 'drop' as BuildStyle,
+          delay: 0.8,
+          targetGroups: ['dialogue-badge', 'actions', 'cta', 'spidey-perch', 'pixel-art', 'default'],
+        },
+      ];
 
-      // Spawn Spider-Bot Agents
-      agents = groups.map((grpName, idx) => {
-        const groupJobs = jobs.filter((j) => j.group === grpName);
-        const pieces = groupJobs.flatMap((j) => j.pieces);
-        const shade = BOT_SHADES[idx % BOT_SHADES.length];
-        const startX = idx % 2 === 0 ? -40 : containerWidth + 40;
-        const startY = 30 + (idx * containerHeight) / Math.max(1, groups.length);
-        const idle = idleTarget(groupJobs, idx, containerRect);
+      // Spawn exactly the 3 specialized Spider-Bot Agents
+      agents = botConfigs.map((cfg, idx) => {
+        const assignedJobs = jobs.filter((j) => {
+          if (cfg.targetGroups.includes(j.group)) return true;
+          // Fallback to bot 2 (Armorer) for anything unassigned
+          if (idx === 2) {
+            return !botConfigs[0].targetGroups.includes(j.group) && !botConfigs[1].targetGroups.includes(j.group);
+          }
+          return false;
+        });
+
+        const pieces = assignedJobs.flatMap((j) => j.pieces);
+        const startX = idx === 1 ? containerWidth / 2 : idx === 0 ? -40 : containerWidth + 40;
+        const startY = idx === 1 ? -30 : 50 + idx * 80;
+        const idle = idleTarget(assignedJobs, idx, containerRect);
 
         const agent: SpiderBotAgent = {
           id: idx,
@@ -183,18 +217,18 @@ export const HeroPixelBuilder: React.FC<HeroPixelBuilderProps> = ({
           y: isAlreadySolid ? idle.y : startY,
           vx: 0,
           vy: 0,
-          face: startX < 0 ? 1 : -1,
+          face: startX < containerWidth / 2 ? 1 : -1,
           walk: 0,
           blink: 0,
           fly: true,
           job: pieces,
           t: 0,
-          delay: isAlreadySolid ? 0 : 0.08 * idx,
+          delay: isAlreadySolid ? 0 : cfg.delay,
           leaving: false,
           gone: false,
-          primaryColor: shade.primary,
-          eyeColor: shade.eye,
-          buildStyle: styleList[idx % styleList.length],
+          primaryColor: cfg.primary,
+          eyeColor: cfg.eye,
+          buildStyle: cfg.style,
           mode: 'building',
           idleTargetX: idle.x,
           idleTargetY: idle.y,
@@ -215,9 +249,12 @@ export const HeroPixelBuilder: React.FC<HeroPixelBuilderProps> = ({
 
       if (isAlreadySolid) complete();
 
-      let blipCounter = 0;
+      let lastSoundTime = 0;
       const onLaunch = () => {
-        if (++blipCounter % 14 === 0 && !mutedRef.current) {
+        const nowMs = performance.now();
+        // Limit sound triggers to at least 55ms apart (~18 per second)
+        if (nowMs - lastSoundTime >= 55 && !mutedRef.current) {
+          lastSoundTime = nowMs;
           soundSynth.playTypewriterBlip(mutedRef.current);
         }
       };
@@ -282,7 +319,7 @@ export const HeroPixelBuilder: React.FC<HeroPixelBuilderProps> = ({
           onClick={() => skipRef.current()}
           className="absolute top-3 right-3 z-40 px-2.5 py-1 bg-midnight-900/90 border-2 border-slate-700 hover:border-arcade-gold text-[10px] sm:text-xs text-slate-300 hover:text-white font-pixel shadow-pixel-sm transition-all cursor-pointer flex items-center gap-1.5 focus:outline-none"
         >
-          <span>Skip build</span>
+          <span>Skip intro</span>
           <kbd className="px-1 py-0.5 bg-midnight-950 border border-slate-700 text-[9px] text-arcade-gold rounded-xs">
             Esc
           </kbd>
