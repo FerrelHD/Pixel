@@ -232,7 +232,7 @@ function svgPieces(svg: SVGSVGElement, containerRect: DOMRect): PixelPiece[] {
 /* Boxes & rings: real border widths, colours and radius               */
 /* ------------------------------------------------------------------ */
 
-function boxPieces(element: Element, containerRect: DOMRect, borderOnly: boolean): PixelPiece[] {
+export function boxPieces(element: Element, containerRect: DOMRect, borderOnly: boolean): PixelPiece[] {
   const cs = getComputedStyle(element);
   const rect = element.getBoundingClientRect();
   const L = rect.left - containerRect.left;
@@ -258,7 +258,8 @@ function boxPieces(element: Element, containerRect: DOMRect, borderOnly: boolean
     return circlePieces(L, T, W, H, Math.max(bt, 2), cs.borderTopColor, fill);
   }
 
-  const SEG = 8;
+  // Authentic 4px pixel lattice
+  const SEG = 4;
   const pieces: PixelPiece[] = [];
   const insideRounded = (x: number, y: number) => {
     if (radius < 3) return true;
@@ -297,7 +298,7 @@ function boxPieces(element: Element, containerRect: DOMRect, borderOnly: boolean
   return pieces;
 }
 
-function circlePieces(
+export function circlePieces(
   L: number,
   T: number,
   W: number,
